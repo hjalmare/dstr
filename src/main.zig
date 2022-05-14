@@ -294,7 +294,9 @@ pub fn main() !void {
 
     if(args.len == 2) {
       //Echo mode
-      for (ret.items) |o| {
+      for (ret.items) |o, i| {
+        if(i != 0) try stdout.writer().writeAll(" ");
+
         try stdout.writer().writeAll(o);
       }    
       try stdout.writer().writeAll("\n");
