@@ -15,7 +15,7 @@ each part of the split input to a symbol name.
 
 Underscore `_` can be used to skip input.
 
-`[_ b]` &ensp; binds only the secon parts of the input to `b`.
+`[_ b]` &ensp; binds only the second part of the input to `b`.
 
 
 Inserting a ellipsis `...` into the expression will tell dstr to skip to the end of the input.
