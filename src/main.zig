@@ -148,33 +148,33 @@ fn compile(allocator: Allocator, source: [] const u8) !Program {
   return Program{.symbols = symbols, .ex = ex};
 }
 
-const CsvMode = enum {
+const SssMode = enum {
   START, WORD
 };
 
 fn splitInput(allocator: Allocator, input: []const u8) !ArrayList([]const u8) {
   var ret = ArrayList([]const u8).init(allocator);
   var startPos: usize = 0;
-  var mode = CsvMode.START;
+  var mode = SssMode.START;
 
   for (input) |c, i| {
     switch(mode) {
-      CsvMode.START => {
+      SssMode.START => {
         if (!isWhitespace(c)) {
-          mode = CsvMode.WORD;
+          mode = SssMode.WORD;
           startPos = i;
         }
       },
-      CsvMode.WORD => {
+      SssMode.WORD => {
         if (isWhitespace(c)) {
-          mode = CsvMode.START;
+          mode = SssMode.START;
           try ret.append(input[startPos..i]);
         }
       }
     }
   }
 
-  if(mode == CsvMode.WORD){
+  if(mode == SssMode.WORD){
     try ret.append(input[startPos..]);
   }
   return ret;
@@ -186,7 +186,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
   const isUnderScore = std.mem.eql(u8, ref, "_");
   if(isUnderScore) {
     //Fail when trying to resolve '_' ref
-    std.debug.print("Can not resolve _.\n", .{});
+    std.debug.print("References to _ is not permitted.\n", .{});
     return DestructError.anon_ref;
   }
 
@@ -195,7 +195,6 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     const dotDotDot = std.mem.eql(u8, sym, "...");
     if (debug) std.debug.print("Resolving ref Sym: '{s}' Ref: '{s}' IsSame: '{s}'\n", .{sym, ref, isSame});
     if(dotDotDot){
-      //TODO? is line.items.len = 1 a special case?
       const symLeft = @intCast(i64, symbols.items.len) - @intCast(i64, si) - 1;
       offset = @intCast(i64, line.items.len) - symLeft -1 - @intCast(i64, si);
     } else if (isSame){
@@ -250,6 +249,7 @@ pub fn main() !void {
   defer gpa.deinit();
 
   //Allocator used for each line of input
+  //TODO: use some resettable allocator here
   var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
   var lineAllocator = lineArena.allocator();
   defer lineArena.deinit();
@@ -275,7 +275,9 @@ pub fn main() !void {
 
 
   const src = args[1];
-  const pgm = try compile(allocator, src);
+  const pgm = compile(allocator, src) catch {
+    std.os.exit(1);
+  };
 
   //Read system in
   const stdin = std.io.getStdIn().reader();
@@ -284,10 +286,11 @@ pub fn main() !void {
 
   const stdout = std.io.getStdOut();
 
-  while(input) |in|{
+  while(input) |in| {
     const splatInput = try splitInput(lineAllocator, in);
-    var ret = try execLine(lineAllocator, pgm, splatInput);
-    //std.debug.print("Woha: {s}\n", .{ret});
+    var ret = execLine(lineAllocator, pgm, splatInput) catch {
+      std.os.exit(1);
+    };
 
     if(args.len == 2) {
       //Echo mode
