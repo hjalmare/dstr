@@ -4,7 +4,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
 //Set to true for debug output
-const debug = true;
+const debug = false;
 
 const DestructError = error {
   anon_ref, unknown_ref, missing_input, space_in_interpolation
@@ -127,7 +127,8 @@ fn compile(allocator: Allocator, source: [] const u8) !Program {
           const slz = source[readPos..i];
           try stringFragments.append(AstStringFragment{.type = StringFragmentType.ref, .chars = slz});
           readPos = i + 1;
-        } else if(c == ' ') {
+        } else if(isWhitespace(c)) {
+          std.debug.print("Whitespace is not allowed in string interpolation.\n", .{});
           return DestructError.space_in_interpolation;
         }
       },
@@ -185,6 +186,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
   const isUnderScore = std.mem.eql(u8, ref, "_");
   if(isUnderScore) {
     //Fail when trying to resolve '_' ref
+    std.debug.print("Can not resolve _.\n", .{});
     return DestructError.anon_ref;
   }
 
@@ -199,6 +201,8 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     } else if (isSame){
       const finalOffset = @intCast(i64,si) + offset;
       if((finalOffset >= line.items.len) or (finalOffset < 0) ) {
+
+        std.debug.print("Input is to short.\n", .{});
         return DestructError.missing_input;
       }
       return line.items[@intCast(usize, finalOffset)];
@@ -218,13 +222,11 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
         for(ex.string.items) |fragment| {
           switch(fragment.type) {
             StringFragmentType.chars => {
-              //std.debug.print("{s}\n", .{fragment.chars});
               try strBuf.appendSlice(fragment.chars);
             },
             StringFragmentType.ref => {
               //Resolve str ref
               var refStr = try resolveRef(program.symbols, line, fragment.chars);
-              //std.debug.print("{s}\n", .{refStr});
               try strBuf.appendSlice(refStr);
             }
           }
@@ -233,7 +235,6 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
       },
       .ref => {
           var refStr = try resolveRef(program.symbols, line, ex.ref);
-          //std.debug.print("{s}\n", .{refStr});
           try ret.append(refStr);
         }
       }
@@ -452,7 +453,6 @@ fn quickTest(src: []const u8, input: []const u8, expected: [] const [] const u8)
   const pgm = try compile(allocator, src);
   const splatInput = try splitInput(allocator, input);
   var ret = try execLine(allocator, pgm, splatInput);
-  //std.debug.print("{s}", .{ret});
   try assertStrSlice(ret.items, expected[0..]);
 }
 
