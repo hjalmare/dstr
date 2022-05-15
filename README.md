@@ -33,9 +33,9 @@ To output a string use single quotes `'`
 
 `[a] 'Look: ' a` &ensp; Outputs the string `"Look:"` then `a`
 
-dstr supports string interplation with `{symbol}`
+dstr supports string interpolation with `{symbol}`
 
-`[a] 'Look: {a}'` will replace `{a}` with the value of the symbol `a`  
+`[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`  
 
 
 ## Examples
