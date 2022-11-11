@@ -280,7 +280,7 @@ pub fn main() !void {
             var cmdLine = ArrayList([]const u8).init(lineAllocator);
             try cmdLine.append(args[2]);
             try cmdLine.appendSlice(ret.items);
-            const cp = try std.ChildProcess.init(cmdLine.items, lineAllocator);
+            var cp = std.ChildProcess.init(cmdLine.items, lineAllocator);
             _ = try cp.spawnAndWait();
         }
 
