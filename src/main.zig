@@ -4,26 +4,170 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
 //Set to true for debug output
-const debug = false;
+const debug = true;
 
 const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };
 
 const Mode = enum { START, ARG_LIST, ARG_NAME, EX_LIST, EX_NAME, EX_SQT_STR, EX_SQT_REF, EX_SQT_ESC };
 
-const AstNodeType = enum { string, ref };
+const AstNodeType = enum { string, ref, fun };
 
 const StringFragmentType = enum { chars, ref };
 
 const ExName = struct { name: []const u8, type: AstNodeType };
 
-const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment) };
+const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
 
 const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
 
+const AstFun = struct { name: []const u8, args: ArrayList(AstNode) };
+
 const Program = struct { symbols: ArrayList([]const u8), ex: ArrayList(AstNode) };
+
+const StringReader = struct {
+    src: []const u8,
+    offset: usize = 0,
+    selectStart: usize = 0,
+
+    pub fn init(s: []const u8) StringReader {
+        return StringReader{
+            .src = s,
+            .offset = 0,
+            .selectStart = 0,
+        };
+    }
+
+    pub fn next(self: *StringReader) ?u8 {
+        return if (self.offset < self.src.len) {
+            var ret = self.src[self.offset];
+            self.offset = self.offset + 1;
+            return ret;
+        } else null;
+    }
+    pub fn peek(self: StringReader) u8 {
+        return self.src[self.offset - 1];
+    }
+
+    pub fn select(self: *StringReader) void {
+        self.selectStart = self.offset - 1;
+    }
+    
+    //Exclusive selection
+    //Returns selection from the last select() until the previously
+    //read char
+    pub fn selection(self: StringReader) []const u8 {
+        return self.src[self.selectStart..(self.offset - 1)];
+    }
+
+    pub fn selectionInc(self: StringReader) []const u8 {
+        return self.src[self.selectStart..(self.offset)];
+    }
+};
 
 fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
+}
+
+fn readStringChars(it: *StringReader, typ: u8) AstStringFragment {
+    it.select();
+
+    while (it.next()) |c| {
+        if (c == typ) {
+            break;
+        }
+    }
+    return AstStringFragment{
+        .type = StringFragmentType.chars,
+        .chars = it.selection(),
+    };
+}
+
+fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNode {
+    // std.debug.print("{p} {p}", .{allocator, it});
+    var fragments = ArrayList(AstStringFragment).init(allocator);
+
+    while (it.next()) |c| {
+        if (c == typ) {
+            break;
+        } else {
+            try fragments.append(readStringChars(it, typ));
+        }
+
+        if (it.peek() == typ) {
+            break;
+        }
+    }
+
+    return AstNode{ .string = fragments };
+}
+
+fn readRefExpression(it: *StringReader) AstNode {
+    it.select();
+    
+    while(it.next()) |c| {
+        if(isWhitespace(c)) {
+            return AstNode {.ref = it.selection()};
+        }
+    }
+
+    if (debug) {
+        std.debug.print("Adding Ref: '{s}''\n", .{it.selectionInc()});
+    }
+    return AstNode {.ref = it.selectionInc()};
+}
+
+fn readSymbol(it: *StringReader) []const u8 {
+    it.select();
+    while (it.next()) |c| {
+        if (isWhitespace(c) or (c == ']')) {
+            break;
+        }
+    }
+    return it.selection();
+}
+
+fn compile2(allocator: Allocator, source: []const u8) !Program {
+    var it = StringReader.init(source);
+
+    //clear leading text
+    while (it.next()) |c| {
+        if (c == '[') {
+            break;
+        }
+    }
+
+    //read symbol bindings
+    var symbols = ArrayList([]const u8).init(allocator);
+    while (it.next()) |c| {
+        std.debug.print("SymbolsRoot Char: {c}\n", .{c});
+        if (c == ']') {
+            break;
+        } else if (!isWhitespace(c)) {
+            var sym = readSymbol(&it);
+            if (sym.len > 0) {
+                if (debug) {
+                    std.debug.print("Adding SymbolBinding: {s}\n", .{sym});
+                }
+                try symbols.append(sym);
+            }
+        }
+
+        if (it.peek() == ']') {
+            break;
+        }
+    }
+
+    //read expressions
+    var ex = ArrayList(AstNode).init(allocator);
+    while (it.next()) |c| {
+        if ((c == '\'') or (c == '"')) {
+            try ex.append(try readStringExpression(allocator, &it, c));
+        } else if (!isWhitespace(c)) {
+            try ex.append(readRefExpression(&it)); 
+        }
+    }
+
+    return Program{ .symbols = symbols, .ex = ex };
 }
 
 fn compile(allocator: Allocator, source: []const u8) !Program {
@@ -35,7 +179,7 @@ fn compile(allocator: Allocator, source: []const u8) !Program {
     var readPos: usize = 0;
 
     for (source) |c, i| {
-        if (debug) std.debug.print("{d}: {c}  {s}\n", .{ i, c, mode });
+        if (debug) std.debug.print("{d}: {c}  {any}\n", .{ i, c, mode });
 
         switch (mode) {
             Mode.START => {
@@ -171,7 +315,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     for (symbols.items) |sym, si| {
         const isSame = std.mem.eql(u8, sym, ref);
         const dotDotDot = std.mem.eql(u8, sym, "...");
-        if (debug) std.debug.print("Resolving ref Sym: '{s}' Ref: '{s}' IsSame: '{s}'\n", .{ sym, ref, isSame });
+        if (debug) std.debug.print("Resolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
         if (dotDotDot) {
             const symLeft = @intCast(i64, symbols.items.len) - @intCast(i64, si) - 1;
             offset = @intCast(i64, line.items.len) - symLeft - 1 - @intCast(i64, si);
@@ -213,6 +357,7 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
                 var refStr = try resolveRef(program.symbols, line, ex.ref);
                 try ret.append(refStr);
             },
+            .fun => {},
         }
     }
 
@@ -420,6 +565,20 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     };
 
     return error.NotSame; //TODO: Change this error
+}
+
+test "comp2 test" {
+    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = gpa.allocator();
+    defer gpa.deinit();
+    const src = "[ one _ two ] 'strings baby' one two";
+
+    const input = "aa bb cc";
+    const splatInput = try splitInput(allocator, input);
+    const pgm  = try compile2(allocator, src);
+    var ret = try execLine(allocator, pgm, splatInput);
+    const expected = [_][]const u8{ "strings baby", "aa", "cc"};
+    try assertStrSlice(ret.items, expected[0..]);
 }
 
 fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !void {
