@@ -5,6 +5,7 @@ const Allocator = std.mem.Allocator;
 
 //Set to true for debug output
 const debug = true;
+const debugReader = true;
 
 const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };
 
@@ -41,26 +42,57 @@ const StringReader = struct {
         return if (self.offset < self.src.len) {
             var ret = self.src[self.offset];
             self.offset = self.offset + 1;
+            if (debugReader) {
+                std.debug.print("\t\tReader.next offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+            }
             return ret;
         } else null;
     }
+
     pub fn peek(self: StringReader) u8 {
+        if (debugReader) {
+            var ret = self.src[self.offset - 1];
+            std.debug.print("\t\tReader.peek offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
         return self.src[self.offset - 1];
     }
 
     pub fn select(self: *StringReader) void {
         self.selectStart = self.offset - 1;
+        if (debugReader) {
+            var ret = self.src[self.offset - 1];
+            std.debug.print("\t\tReader.select offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
     }
-    
+
     //Exclusive selection
     //Returns selection from the last select() until the previously
     //read char
     pub fn selection(self: StringReader) []const u8 {
-        return self.src[self.selectStart..(self.offset - 1)];
+        var off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset - 1;
+        if (debugReader) {
+            var ret = self.src[off];
+            std.debug.print("\t\tReader.selection offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
+
+        return self.src[self.selectStart..off];
     }
 
     pub fn selectionInc(self: StringReader) []const u8 {
-        return self.src[self.selectStart..(self.offset)];
+        var off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset;
+        if (debugReader) {
+            var ret = self.src[off];
+            std.debug.print("\t\tReader.selectionInc offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
+        return self.src[self.selectStart..(off + 1)];
+    }
+
+    pub fn rewind(self: *StringReader) void {
+        self.offset = self.offset - 1;
+        if (debugReader) {
+            var ret = self.src[self.offset];
+            std.debug.print("\t\tReader.rewind offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
     }
 };
 
@@ -68,27 +100,82 @@ fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
 }
 
-fn readStringChars(it: *StringReader, typ: u8) AstStringFragment {
+fn readStringRef(it: *StringReader) !AstStringFragment {
+    if (debug) {
+        std.debug.print("\tEnter readStringRef\n", .{});
+    }
+
+    _ = it.next(); // skip leading {
     it.select();
 
+    //Fail on leading space
+    if (isWhitespace(it.peek())) {
+        return DestructError.space_in_interpolation;
+    }
+
     while (it.next()) |c| {
-        if (c == typ) {
+        if (c == '}') {
             break;
         }
+        if (isWhitespace(c)) {
+            return DestructError.space_in_interpolation;
+        }
     }
+    if (debug) {
+        std.debug.print("\tAdding StringRef: '{s}'\n", .{it.selection()});
+    }
+
     return AstStringFragment{
-        .type = StringFragmentType.chars,
+        .type = StringFragmentType.ref,
         .chars = it.selection(),
     };
 }
 
-fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNode {
-    // std.debug.print("{p} {p}", .{allocator, it});
-    var fragments = ArrayList(AstStringFragment).init(allocator);
+fn readStringChars(it: *StringReader, typ: u8) AstStringFragment {
+    if (debug) {
+        std.debug.print("\tEnter readStringChars\n", .{});
+    }
+    it.select();
 
     while (it.next()) |c| {
-        if (c == typ) {
+        if ((c == typ) or (c == '{') or (c == '\\')) {
             break;
+        }
+    }
+    if (debug) {
+        std.debug.print("\tAdding StringFragment: '{s}'\n", .{it.selection()});
+    }
+    var ret = AstStringFragment{
+        .type = StringFragmentType.chars,
+        .chars = it.selection(),
+    };
+
+    if ((it.peek() == '{') or (it.peek() == '\\')) {
+        //Ugly hack but it works, this way readStringExpression
+        //sees the { token
+        it.rewind();
+    }
+    return ret;
+}
+
+fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNode {
+    if (debug) {
+        std.debug.print("\tEnter readStringExpression\n", .{});
+    }
+    // std.debug.print("{p} {p}", .{allocator, it});
+    var fragments = ArrayList(AstStringFragment).init(allocator);
+    var escaped = false;
+
+    while (it.next()) |c| {
+        if (escaped) {
+            try fragments.append(readStringChars(it, typ));
+            escaped = false;
+        } else if (c == typ) {
+            break;
+        } else if (c == '{') {
+            try fragments.append(try readStringRef(it));
+        } else if (c == '\\') {
+            escaped = true;
         } else {
             try fragments.append(readStringChars(it, typ));
         }
@@ -98,25 +185,35 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
         }
     }
 
+    std.debug.print("\tString Exit {c}\n", .{it.peek()});
     return AstNode{ .string = fragments };
 }
 
 fn readRefExpression(it: *StringReader) AstNode {
+    if (debug) {
+        std.debug.print("\tEnter readRefExpression\n", .{});
+    }
     it.select();
-    
-    while(it.next()) |c| {
-        if(isWhitespace(c)) {
-            return AstNode {.ref = it.selection()};
+
+    while (it.next()) |c| {
+        if (isWhitespace(c)) {
+            if (debug) {
+                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
+            }
+            return AstNode{ .ref = it.selection() };
         }
     }
 
     if (debug) {
-        std.debug.print("Adding Ref: '{s}''\n", .{it.selectionInc()});
+        std.debug.print("\tAdding RefInc: '{s}''\n", .{it.selectionInc()});
     }
-    return AstNode {.ref = it.selectionInc()};
+    return AstNode{ .ref = it.selectionInc() };
 }
 
 fn readSymbol(it: *StringReader) []const u8 {
+    if (debug) {
+        std.debug.print("\tEnter readSymbol", .{});
+    }
     it.select();
     while (it.next()) |c| {
         if (isWhitespace(c) or (c == ']')) {
@@ -139,14 +236,13 @@ fn compile2(allocator: Allocator, source: []const u8) !Program {
     //read symbol bindings
     var symbols = ArrayList([]const u8).init(allocator);
     while (it.next()) |c| {
-        std.debug.print("SymbolsRoot Char: {c}\n", .{c});
         if (c == ']') {
             break;
         } else if (!isWhitespace(c)) {
             var sym = readSymbol(&it);
             if (sym.len > 0) {
                 if (debug) {
-                    std.debug.print("Adding SymbolBinding: {s}\n", .{sym});
+                    std.debug.print("\tAdding SymbolBinding: '{s}'\n", .{sym});
                 }
                 try symbols.append(sym);
             }
@@ -163,7 +259,7 @@ fn compile2(allocator: Allocator, source: []const u8) !Program {
         if ((c == '\'') or (c == '"')) {
             try ex.append(try readStringExpression(allocator, &it, c));
         } else if (!isWhitespace(c)) {
-            try ex.append(readRefExpression(&it)); 
+            try ex.append(readRefExpression(&it));
         }
     }
 
@@ -315,7 +411,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     for (symbols.items) |sym, si| {
         const isSame = std.mem.eql(u8, sym, ref);
         const dotDotDot = std.mem.eql(u8, sym, "...");
-        if (debug) std.debug.print("Resolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
+        if (debug) std.debug.print("\tResolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
         if (dotDotDot) {
             const symLeft = @intCast(i64, symbols.items.len) - @intCast(i64, si) - 1;
             offset = @intCast(i64, line.items.len) - symLeft - 1 - @intCast(i64, si);
@@ -439,7 +535,7 @@ pub fn main() !void {
 }
 
 test "Ellipsis and string interpolation" {
-    const src = "[ one ... two ]   two ' ' 'says {one} aswell' ";
+    const src = "[ one ... two ]   two ' '  'says {one} aswell' ";
     const input = "hello a b c malte";
     const expectedOutput = [_][]const u8{ "malte", " ", "says hello aswell" };
     try quickTest(src, input, expectedOutput[0..]);
@@ -543,7 +639,7 @@ fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile(allocator, src);
+    const pgm = try compile2(allocator, src);
     const splatInput = try splitInput(allocator, input);
 
     _ = execLine(allocator, pgm, splatInput) catch |err| {
@@ -559,7 +655,7 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    _ = compile(allocator, src) catch |err| {
+    _ = compile2(allocator, src) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -575,9 +671,23 @@ test "comp2 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm  = try compile2(allocator, src);
+    const pgm = try compile2(allocator, src);
     var ret = try execLine(allocator, pgm, splatInput);
-    const expected = [_][]const u8{ "strings baby", "aa", "cc"};
+    const expected = [_][]const u8{ "strings baby", "aa", "cc" };
+    try assertStrSlice(ret.items, expected[0..]);
+}
+
+test "comp3 test" {
+    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = gpa.allocator();
+    defer gpa.deinit();
+    const src = "[one _ two ] one 'strings {two}'";
+
+    const input = "aa bb cc";
+    const splatInput = try splitInput(allocator, input);
+    const pgm = try compile2(allocator, src);
+    var ret = try execLine(allocator, pgm, splatInput);
+    const expected = [_][]const u8{ "aa", "strings cc" };
     try assertStrSlice(ret.items, expected[0..]);
 }
 
@@ -586,7 +696,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile(allocator, src);
+    const pgm = try compile2(allocator, src);
     const splatInput = try splitInput(allocator, input);
     var ret = try execLine(allocator, pgm, splatInput);
     try assertStrSlice(ret.items, expected[0..]);
