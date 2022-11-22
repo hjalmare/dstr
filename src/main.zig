@@ -223,7 +223,7 @@ fn readSymbol(it: *StringReader) []const u8 {
     return it.selection();
 }
 
-fn compile2(allocator: Allocator, source: []const u8) !Program {
+fn compile(allocator: Allocator, source: []const u8) !Program {
     var it = StringReader.init(source);
 
     //clear leading text
@@ -261,107 +261,6 @@ fn compile2(allocator: Allocator, source: []const u8) !Program {
         } else if (!isWhitespace(c)) {
             try ex.append(readRefExpression(&it));
         }
-    }
-
-    return Program{ .symbols = symbols, .ex = ex };
-}
-
-fn compile(allocator: Allocator, source: []const u8) !Program {
-    var symbols = ArrayList([]const u8).init(allocator);
-    var ex = ArrayList(AstNode).init(allocator);
-    var stringFragments: ArrayList(AstStringFragment) = undefined;
-    //Parser FSM
-    var mode = Mode.START;
-    var readPos: usize = 0;
-
-    for (source) |c, i| {
-        if (debug) std.debug.print("{d}: {c}  {any}\n", .{ i, c, mode });
-
-        switch (mode) {
-            Mode.START => {
-                if (c == '[') {
-                    mode = Mode.ARG_LIST;
-                }
-            },
-            Mode.ARG_LIST => {
-                if (c == ']') {
-                    mode = Mode.EX_LIST;
-                } else if (!isWhitespace(c)) {
-                    mode = Mode.ARG_NAME;
-                    readPos = i;
-                }
-            },
-            Mode.ARG_NAME => {
-                if (c == ']') {
-                    mode = Mode.EX_LIST;
-                    const slz = source[readPos..i];
-                    try symbols.append(slz);
-                } else if (isWhitespace(c)) {
-                    mode = Mode.ARG_LIST;
-                    const slz = source[readPos..i];
-                    try symbols.append(slz);
-                }
-            },
-            Mode.EX_LIST => {
-                if ('\'' == c) {
-                    //Enter quoted string mode
-                    mode = Mode.EX_SQT_STR;
-                    readPos = i + 1;
-                    stringFragments = ArrayList(AstStringFragment).init(allocator);
-                } else if (!isWhitespace(c)) {
-                    mode = Mode.EX_NAME;
-                    readPos = i;
-                }
-            },
-            Mode.EX_NAME => {
-                if (isWhitespace(c)) {
-                    mode = Mode.EX_LIST;
-                    const slz = source[readPos..i];
-                    try ex.append(AstNode{ .ref = slz });
-                    readPos = i;
-                }
-            },
-            Mode.EX_SQT_STR => {
-                if (c == '\'') {
-                    mode = Mode.EX_LIST;
-                    const slz = source[readPos..i];
-                    try stringFragments.append(AstStringFragment{ .type = StringFragmentType.chars, .chars = slz });
-                    try ex.append(AstNode{ .string = stringFragments });
-                    stringFragments = undefined;
-                } else if (c == '{') {
-                    mode = Mode.EX_SQT_REF;
-                    const slz = source[readPos..i];
-                    try stringFragments.append(AstStringFragment{ .type = StringFragmentType.chars, .chars = slz });
-                    readPos = i + 1;
-                } else if (c == '\\') {
-                    mode = Mode.EX_SQT_ESC;
-                    const slz = source[readPos..i];
-                    try stringFragments.append(AstStringFragment{ .type = StringFragmentType.chars, .chars = slz });
-                    readPos = i + 1;
-                }
-            },
-            Mode.EX_SQT_REF => {
-                if (c == '}') {
-                    mode = Mode.EX_SQT_STR;
-                    const slz = source[readPos..i];
-                    try stringFragments.append(AstStringFragment{ .type = StringFragmentType.ref, .chars = slz });
-                    readPos = i + 1;
-                } else if (isWhitespace(c)) {
-                    std.debug.print("Whitespace is not allowed in string interpolation.\n", .{});
-                    return DestructError.space_in_interpolation;
-                }
-            },
-            Mode.EX_SQT_ESC => {
-                mode = Mode.EX_SQT_STR;
-            },
-        }
-    }
-    //Cleanup last token
-    if (mode == Mode.EX_NAME) {
-        const slz = source[readPos..];
-        try ex.append(AstNode{ .ref = slz });
-    } else if (mode == Mode.EX_SQT_STR) {
-        //TODO: maybe do something?
     }
 
     return Program{ .symbols = symbols, .ex = ex };
@@ -639,7 +538,7 @@ fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile2(allocator, src);
+    const pgm = try compile(allocator, src);
     const splatInput = try splitInput(allocator, input);
 
     _ = execLine(allocator, pgm, splatInput) catch |err| {
@@ -655,7 +554,7 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    _ = compile2(allocator, src) catch |err| {
+    _ = compile(allocator, src) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -671,7 +570,7 @@ test "comp2 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile2(allocator, src);
+    const pgm = try compile(allocator, src);
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "strings baby", "aa", "cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -685,7 +584,7 @@ test "comp3 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile2(allocator, src);
+    const pgm = try compile(allocator, src);
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "aa", "strings cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -696,7 +595,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile2(allocator, src);
+    const pgm = try compile(allocator, src);
     const splatInput = try splitInput(allocator, input);
     var ret = try execLine(allocator, pgm, splatInput);
     try assertStrSlice(ret.items, expected[0..]);
