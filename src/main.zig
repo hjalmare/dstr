@@ -100,10 +100,20 @@ fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
 }
 
-fn readRefFuncArgs(it: *StringReader) void {
+fn readRefFuncArgs(allocator: Allocator, it: *StringReader, arglist: *ArrayList(AstNode)) std.mem.Allocator.Error!void {
+    if (debug) {
+        std.debug.print("redRefFuncArgs\n", .{});
+    }
+
     while (it.next()) |c| {
         if (c == ')') {
             break;
+        } else {
+            var r = try readRefExpression(allocator, it);
+            try arglist.append(r);
+            if (it.peek() == ')') {
+                break;
+            }
         }
     }
 }
@@ -123,7 +133,7 @@ fn readRefFunc(allocator: Allocator, it: *StringReader, parent: AstNode) !AstNod
         if (c == '(') {
             //parse arglist
             var name = it.selection();
-            readRefFuncArgs(it);
+            try readRefFuncArgs(allocator, it, &args);
             if (debug) {
                 std.debug.print("\tAdding AstFun: '{s}'\n", .{name});
             }
@@ -228,7 +238,7 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
     return AstNode{ .string = fragments };
 }
 
-fn readRefExpression(allocator: Allocator, it: *StringReader) !AstNode {
+fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.Error!AstNode {
     if (debug) {
         std.debug.print("\tEnter readRefExpression\n", .{});
     }
@@ -237,7 +247,7 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) !AstNode {
     while (it.next()) |c| {
         if (c == '.') {
             return readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-        } else if (isWhitespace(c)) {
+        } else if (isWhitespace(c) or (c == ')')) {
             if (debug) {
                 std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
             }
@@ -246,7 +256,7 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) !AstNode {
     }
 
     if (debug) {
-        std.debug.print("\tAdding RefInc: '{s}''\n", .{it.selectionInc()});
+        std.debug.print("\tAdding RefInc: '{s}'\n", .{it.selectionInc()});
     }
     return AstNode{ .ref = it.selectionInc() };
 }
@@ -394,11 +404,24 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
                 try ret.append(refStr);
             },
             .fun => {
-                var arg1 = ex.fun.args.items[0].ref;
-                var refStr = try resolveRef(program.symbols, line, arg1);
-                var refBuf = try allocator.alloc(u8, refStr.len);
-                _ = std.ascii.upperString(refBuf, refStr);
-                try ret.append(refBuf);
+                var funName = ex.fun.name;
+
+                if (std.mem.eql(u8, "upper", funName)) {
+                    var arg1 = ex.fun.args.items[0].ref;
+                    var refStr = try resolveRef(program.symbols, line, arg1);
+                    var refBuf = try allocator.alloc(u8, refStr.len);
+                    _ = std.ascii.upperString(refBuf, refStr);
+                    try ret.append(refBuf);
+                } else if (std.mem.eql(u8, "first", funName)) {
+                    var arg1 = ex.fun.args.items[0].ref;
+                    var arg2 = ex.fun.args.items[1].ref;
+                    var asInt = try std.fmt.parseInt(usize, arg2, 10);
+
+                    var refStr = try resolveRef(program.symbols, line, arg1);
+                    var result = refStr[0..asInt];
+                    std.debug.print("first: '{s}' \n", .{result});
+                    try ret.append(result);
+                }
             },
         }
     }
@@ -550,12 +573,24 @@ test "String interpolation" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
-test "Function invocation" {
+//=========================================================================
+// Functions
+
+test "Function upper" {
     const src = "[ one two ] one.upper() two";
     const input = "aa bb";
     const expectedOutput = [_][]const u8{ "AA", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
+
+test "Function first" {
+    const src = "[ one two ] one.first(2) two";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{ "aa", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+//==========================================================================
+// Fails
 
 test "Fail on leading space in interpolation" {
     const src = "[ one ] '{ one}'";
