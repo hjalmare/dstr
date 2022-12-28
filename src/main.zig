@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 
 //Set to true for debug output
 const debug = true;
-const debugReader = true;
+const debugReader = false;
 
 const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };
 
@@ -100,6 +100,44 @@ fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
 }
 
+fn readRefFuncArgs(it: *StringReader) void {
+    while (it.next()) |c| {
+        if (c == ')') {
+            break;
+        }
+    }
+}
+
+fn readRefFunc(allocator: Allocator, it: *StringReader, parent: AstNode) !AstNode {
+    if (debug) {
+        std.debug.print("Enter readRefFunc\n", .{});
+    }
+
+    _ = it.next(); // skip leading .
+    it.select();
+
+    var args = ArrayList(AstNode).init(allocator);
+    try args.append(parent);
+
+    while (it.next()) |c| {
+        if (c == '(') {
+            //parse arglist
+            var name = it.selection();
+            readRefFuncArgs(it);
+            if (debug) {
+                std.debug.print("\tAdding AstFun: '{s}'\n", .{name});
+            }
+            return AstNode{ .fun = AstFun{ .name = name, .args = args } };
+        } else if (c == '}') {
+            break;
+        }
+    }
+    if (debug) {
+        std.debug.print("\tAdding AstFun: '{s}'\n", .{it.selection()});
+    }
+    return AstNode{ .fun = AstFun{ .name = it.selection(), .args = args } };
+}
+
 fn readStringRef(it: *StringReader) !AstStringFragment {
     if (debug) {
         std.debug.print("\tEnter readStringRef\n", .{});
@@ -168,6 +206,7 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
 
     while (it.next()) |c| {
         if (escaped) {
+            //Last char was \
             try fragments.append(readStringChars(it, typ));
             escaped = false;
         } else if (c == typ) {
@@ -189,14 +228,16 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
     return AstNode{ .string = fragments };
 }
 
-fn readRefExpression(it: *StringReader) AstNode {
+fn readRefExpression(allocator: Allocator, it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("\tEnter readRefExpression\n", .{});
     }
     it.select();
 
     while (it.next()) |c| {
-        if (isWhitespace(c)) {
+        if (c == '.') {
+            return readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
+        } else if (isWhitespace(c)) {
             if (debug) {
                 std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
             }
@@ -259,7 +300,7 @@ fn compile(allocator: Allocator, source: []const u8) !Program {
         if ((c == '\'') or (c == '"')) {
             try ex.append(try readStringExpression(allocator, &it, c));
         } else if (!isWhitespace(c)) {
-            try ex.append(readRefExpression(&it));
+            try ex.append(try readRefExpression(allocator, &it));
         }
     }
 
@@ -352,7 +393,13 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
                 var refStr = try resolveRef(program.symbols, line, ex.ref);
                 try ret.append(refStr);
             },
-            .fun => {},
+            .fun => {
+                var arg1 = ex.fun.args.items[0].ref;
+                var refStr = try resolveRef(program.symbols, line, arg1);
+                var refBuf = try allocator.alloc(u8, refStr.len);
+                _ = std.ascii.upperString(refBuf, refStr);
+                try ret.append(refBuf);
+            },
         }
     }
 
@@ -500,6 +547,13 @@ test "String interpolation" {
     const src = "[ one _  _ ] '{one}-{one}'";
     const input = "aa bb cc";
     const expectedOutput = [_][]const u8{"aa-aa"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "Function invocation" {
+    const src = "[ one two ] one.upper() two";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "AA", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 
