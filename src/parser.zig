@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const isWhitespace = std.ascii.isWhitespace;
 
 //Set to true for debug output
-const debug = true;
+const debug = false;
 const debugReader = false;
 
 pub const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };

@@ -10,7 +10,7 @@ const StringFragmentType = parser.StringFragmentType;
 const compile = parser.compile;
 
 //Set to true for debug output
-const debug = true;
+const debug = false;
 
 fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
@@ -154,8 +154,8 @@ pub fn main() !void {
         std.debug.print("\t./dstr [expression]\n", .{});
         std.debug.print("\t./dstr [expression] [executable] or\n\n", .{});
         std.debug.print("Example:\n", .{});
-        std.debug.print("\tdstr \"[a .. b]  a b \"\n", .{});
-        std.debug.print("\tdstr \"[a .. b]  a b \" echo\n", .{});
+        std.debug.print("\tdstr \"[a ... b]  a b \"\n", .{});
+        std.debug.print("\tdstr \"[a ... b]  a b \" echo\n", .{});
         std.os.exit(1);
     }
 
