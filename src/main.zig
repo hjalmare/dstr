@@ -152,10 +152,18 @@ pub fn main() !void {
     if ((args.len < 2) or (args.len > 3)) {
         std.debug.print("Please invoke using: \n", .{});
         std.debug.print("\t./dstr [expression]\n", .{});
-        std.debug.print("\t./dstr [expression] [executable] or\n\n", .{});
-        std.debug.print("Example:\n", .{});
+        std.debug.print("\t./dstr [expression] [executable]\n", .{});
+        std.debug.print("\nExample:\n", .{});
         std.debug.print("\tdstr \"[a ... b]  a b \"\n", .{});
         std.debug.print("\tdstr \"[a ... b]  a b \" echo\n", .{});
+
+        std.debug.print("\nReference:\n", .{});
+        std.debug.print("\t\"[\"binding+\"]\" output+\n", .{});
+        std.debug.print("\tbinding = varname | elipsis | ignore\n", .{});
+        std.debug.print("\tvarname = \\w+\n", .{});
+        std.debug.print("\telipsis = \"...\"\n", .{});
+        std.debug.print("\tignore  = \"_\"\n", .{});
+
         std.os.exit(1);
     }
 
