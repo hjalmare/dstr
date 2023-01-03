@@ -231,7 +231,9 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
         }
     }
 
-    std.debug.print("\tString Exit {c}\n", .{it.peek()});
+    if (debug) {
+        std.debug.print("\tString Exit {c}\n", .{it.peek()});
+    }
     return AstNode{ .string = fragments };
 }
 
