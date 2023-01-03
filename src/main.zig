@@ -288,6 +288,13 @@ test "Function first" {
     const expectedOutput = [_][]const u8{ "aa", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
+
+test "Function chaining" {
+    const src = "[ one two ] one.first(2).upper() two";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{ "AA", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
 //==========================================================================
 // Fails
 
