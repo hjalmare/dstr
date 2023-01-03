@@ -165,7 +165,7 @@ pub fn main() !void {
         std.debug.print("\tignore  = \"_\"\n", .{});
         std.debug.print("\toutput  = ref | string\n", .{});
         std.debug.print("\tref     = \\w+\n", .{});
-        std.debug.print("\tstring  = \"' {text | interpolation}* \"'\n", .{});
+        std.debug.print("\tstring  = \"' {{text | interpolation}}* \"'\n", .{});
 
         std.os.exit(1);
     }
