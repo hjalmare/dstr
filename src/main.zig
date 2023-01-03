@@ -158,11 +158,14 @@ pub fn main() !void {
         std.debug.print("\tdstr \"[a ... b]  a b \" echo\n", .{});
 
         std.debug.print("\nReference:\n", .{});
-        std.debug.print("\t\"[\"binding+\"]\" output+\n", .{});
+        std.debug.print("\t\"[\" binding+ \"]\" output+\n", .{});
         std.debug.print("\tbinding = varname | elipsis | ignore\n", .{});
         std.debug.print("\tvarname = \\w+\n", .{});
         std.debug.print("\telipsis = \"...\"\n", .{});
         std.debug.print("\tignore  = \"_\"\n", .{});
+        std.debug.print("\toutput  = ref | string\n", .{});
+        std.debug.print("\tref     = \\w+\n", .{});
+        std.debug.print("\tstring  = \"' {text | interpolation}* \"'\n", .{});
 
         std.os.exit(1);
     }
@@ -194,6 +197,7 @@ pub fn main() !void {
             try stdout.writer().writeAll("\n");
         } else {
             //Exec mode
+            //TODO: handle exec errors nicely
             var cmdLine = ArrayList([]const u8).init(lineAllocator);
             try cmdLine.append(args[2]);
             try cmdLine.appendSlice(ret.items);
