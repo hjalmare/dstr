@@ -202,7 +202,10 @@ pub fn main() !void {
             try cmdLine.append(args[2]);
             try cmdLine.appendSlice(ret.items);
             var cp = std.ChildProcess.init(cmdLine.items, lineAllocator);
-            _ = try cp.spawnAndWait();
+            _ = cp.spawnAndWait() catch {
+                std.debug.print("Failed to execute '{s}'\n", .{args[2]});
+                std.os.exit(1);
+            };
         }
 
         //Reset allocator and read a new line of input
