@@ -5,8 +5,13 @@ const Allocator = std.mem.Allocator;
 const isWhitespace = std.ascii.isWhitespace;
 
 //Set to true for debug output
+<<<<<<< HEAD
 const debug = true;
 const debugReader = true;
+=======
+const debug = false;
+const debugReader = false;
+>>>>>>> 1ade4fe3602dae2cf9e878ab15cd6dc1ba7428cd
 
 pub const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };
 
@@ -262,7 +267,9 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
         }
     }
 
-    std.debug.print("\tString Exit {c}\n", .{it.peek()});
+    if (debug) {
+        std.debug.print("\tString Exit {c}\n", .{it.peek()});
+    }
     return AstNode{ .string = fragments };
 }
 

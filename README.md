@@ -68,16 +68,16 @@ Send output to another executable
 ```
 $ cat test.sh 
 > #!/bin/bash
-> echo  "Invoked:" $0 $1
+> echo  "Invoked:" $1 $2
 
-$ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size:' si" ./test.sh
-> Invoked: ./test.sh build.zig
-> Invoked: ./test.sh LICENSE
-> Invoked: ./test.sh README.md
-> Invoked: ./test.sh src
-> Invoked: ./test.sh test.sh
-> Invoked: ./test.sh zig-cache
-> Invoked: ./test.sh zig-out
+$ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
+> Invoked: build.zig size: 481
+> Invoked: LICENSE size: 1073
+> Invoked: README.md size: 1918
+> Invoked: src size: 4096
+> Invoked: test.sh size: 37
+> Invoked: zig-cache size: 4096
+> Invoked: zig-out size: 4096
 ```
 
 
