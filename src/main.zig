@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const parser = @import("./parser.zig");
 const DestructError = parser.DestructError;
 const Program = parser.Program;
+const AstFun = parser.AstFun;
 const StringFragmentType = parser.StringFragmentType;
 const compile = parser.compile;
 
@@ -103,29 +104,36 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
                 try ret.append(refStr);
             },
             .fun => {
-                var funName = ex.fun.name;
-
-                if (std.mem.eql(u8, "upper", funName)) {
-                    var arg1 = ex.fun.args.items[0].ref;
-                    var refStr = try resolveRef(program.symbols, line, arg1);
-                    var refBuf = try allocator.alloc(u8, refStr.len);
-                    _ = std.ascii.upperString(refBuf, refStr);
-                    try ret.append(refBuf);
-                } else if (std.mem.eql(u8, "first", funName)) {
-                    var arg1 = ex.fun.args.items[0].ref;
-                    var arg2 = ex.fun.args.items[1].ref;
-                    var asInt = try std.fmt.parseInt(usize, arg2, 10);
-
-                    var refStr = try resolveRef(program.symbols, line, arg1);
-                    var result = refStr[0..asInt];
-                    std.debug.print("first: '{s}' \n", .{result});
-                    try ret.append(result);
-                }
+                try ret.append(try execBuiltin(allocator, program, line, ex.fun));
             },
         }
     }
 
     return ret;
+}
+
+fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+    var funName = fun.name;
+
+    //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
+    if (std.mem.eql(u8, "upper", funName)) {
+        var arg1 = fun.args.items[0].ref;
+        var refStr = try resolveRef(program.symbols, line, arg1);
+        var refBuf = try allocator.alloc(u8, refStr.len);
+        _ = std.ascii.upperString(refBuf, refStr);
+        return refBuf;
+    } else if (std.mem.eql(u8, "first", funName)) {
+        var arg1 = fun.args.items[0].ref;
+        var arg2 = fun.args.items[1].ref;
+        var asInt = try std.fmt.parseInt(usize, arg2, 10);
+
+        var refStr = try resolveRef(program.symbols, line, arg1);
+        var result = refStr[0..asInt];
+        std.debug.print("first: '{s}' \n", .{result});
+        return result;
+    }
+
+    return DestructError.unknown_function;
 }
 
 pub fn main() !void {
