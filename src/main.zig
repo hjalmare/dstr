@@ -159,13 +159,14 @@ pub fn main() !void {
 
         std.debug.print("\nReference:\n", .{});
         std.debug.print("\t\"[\" binding+ \"]\" output+\n", .{});
-        std.debug.print("\tbinding = varname | elipsis | ignore\n", .{});
-        std.debug.print("\tvarname = \\w+\n", .{});
-        std.debug.print("\telipsis = \"...\"\n", .{});
-        std.debug.print("\tignore  = \"_\"\n", .{});
-        std.debug.print("\toutput  = ref | string\n", .{});
-        std.debug.print("\tref     = \\w+\n", .{});
-        std.debug.print("\tstring  = \"' {{text | interpolation}}* \"'\n", .{});
+        std.debug.print("\tbinding       = varname | elipsis | ignore\n", .{});
+        std.debug.print("\tvarname       = \\w+\n", .{});
+        std.debug.print("\tellipsis      = \"...\"\n", .{});
+        std.debug.print("\tignore        = \"_\"\n", .{});
+        std.debug.print("\toutput        = ref | string\n", .{});
+        std.debug.print("\tref           = \\w+\n", .{});
+        std.debug.print("\tstring        = \"'\" {{text | interpolation}}* \"'\"\n", .{});
+        std.debug.print("\tinterpolation = {{ref}}\n", .{});
 
         std.os.exit(1);
     }
@@ -322,6 +323,11 @@ test "Fail on missing input" {
     try failTest(src, input, DestructError.missing_input);
 }
 
+test "Fail on non alpha ref" {
+    const src = "[ one two 3hree] one two three";
+    const input = "aa bb cc";
+    try failTest(src, input, DestructError.ref_non_alpha);
+}
 //In this case aa can be seen as both the first and last element
 //So this program is correct in a way :D
 //test "Fail on missing input with elipse" {
