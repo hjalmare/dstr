@@ -8,7 +8,15 @@ const isWhitespace = std.ascii.isWhitespace;
 const debug = false;
 const debugReader = false;
 
-pub const DestructError = error{ anon_ref, unknown_ref, unknown_function, missing_input, space_in_interpolation, ref_non_alpha };
+pub const DestructError = error{
+    anon_ref,
+    unknown_ref,
+    unknown_function,
+    missing_input,
+    space_in_interpolation,
+    ref_non_alphaa,
+    exec_arg_error,
+};
 
 const Mode = enum { START, ARG_LIST, ARG_NAME, EX_LIST, EX_NAME, EX_SQT_STR, EX_SQT_REF, EX_SQT_ESC };
 

@@ -116,7 +116,16 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
     var funName = fun.name;
 
     //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
+    //TODO: Also do typechecking during compile-time
     if (std.mem.eql(u8, "upper", funName)) {
+        if (fun.args.items.len != 1) {
+            std.debug.print(
+                "Failed to execute 'upper', expecte 0 arguments but got {d}\n",
+                .{fun.args.items.len - 1},
+            );
+            return DestructError.exec_arg_error;
+        }
+
         var arg1 = fun.args.items[0].ref;
         var refStr = try resolveRef(program.symbols, line, arg1);
         var refBuf = try allocator.alloc(u8, refStr.len);
