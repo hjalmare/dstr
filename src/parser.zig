@@ -13,7 +13,7 @@ const debug = false;
 const debugReader = false;
 >>>>>>> 1ade4fe3602dae2cf9e878ab15cd6dc1ba7428cd
 
-pub const DestructError = error{ anon_ref, unknown_ref, missing_input, space_in_interpolation };
+pub const DestructError = error{ anon_ref, unknown_ref, unknown_function, missing_input, space_in_interpolation, ref_non_alpha };
 
 const Mode = enum { START, ARG_LIST, ARG_NAME, EX_LIST, EX_NAME, EX_SQT_STR, EX_SQT_REF, EX_SQT_ESC };
 
@@ -27,7 +27,7 @@ const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStrin
 
 const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
 
-const AstFun = struct { name: []const u8, args: ArrayList(AstNode) };
+pub const AstFun = struct { name: []const u8, args: ArrayList(AstNode) };
 
 pub const Program = struct { symbols: ArrayList([]const u8), ex: ArrayList(AstNode) };
 

@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const parser = @import("./parser.zig");
 const DestructError = parser.DestructError;
 const Program = parser.Program;
+const AstFun = parser.AstFun;
 const StringFragmentType = parser.StringFragmentType;
 const compile = parser.compile;
 
@@ -103,29 +104,36 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
                 try ret.append(refStr);
             },
             .fun => {
-                var funName = ex.fun.name;
-
-                if (std.mem.eql(u8, "upper", funName)) {
-                    var arg1 = ex.fun.args.items[0].ref;
-                    var refStr = try resolveRef(program.symbols, line, arg1);
-                    var refBuf = try allocator.alloc(u8, refStr.len);
-                    _ = std.ascii.upperString(refBuf, refStr);
-                    try ret.append(refBuf);
-                } else if (std.mem.eql(u8, "first", funName)) {
-                    var arg1 = ex.fun.args.items[0].ref;
-                    var arg2 = ex.fun.args.items[1].ref;
-                    var asInt = try std.fmt.parseInt(usize, arg2, 10);
-
-                    var refStr = try resolveRef(program.symbols, line, arg1);
-                    var result = refStr[0..asInt];
-                    std.debug.print("first: '{s}' \n", .{result});
-                    try ret.append(result);
-                }
+                try ret.append(try execBuiltin(allocator, program, line, ex.fun));
             },
         }
     }
 
     return ret;
+}
+
+fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+    var funName = fun.name;
+
+    //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
+    if (std.mem.eql(u8, "upper", funName)) {
+        var arg1 = fun.args.items[0].ref;
+        var refStr = try resolveRef(program.symbols, line, arg1);
+        var refBuf = try allocator.alloc(u8, refStr.len);
+        _ = std.ascii.upperString(refBuf, refStr);
+        return refBuf;
+    } else if (std.mem.eql(u8, "first", funName)) {
+        var arg1 = fun.args.items[0].ref;
+        var arg2 = fun.args.items[1].ref;
+        var asInt = try std.fmt.parseInt(usize, arg2, 10);
+
+        var refStr = try resolveRef(program.symbols, line, arg1);
+        var result = refStr[0..asInt];
+        std.debug.print("first: '{s}' \n", .{result});
+        return result;
+    }
+
+    return DestructError.unknown_function;
 }
 
 pub fn main() !void {
@@ -159,13 +167,14 @@ pub fn main() !void {
 
         std.debug.print("\nReference:\n", .{});
         std.debug.print("\t\"[\" binding+ \"]\" output+\n", .{});
-        std.debug.print("\tbinding = varname | elipsis | ignore\n", .{});
-        std.debug.print("\tvarname = \\w+\n", .{});
-        std.debug.print("\telipsis = \"...\"\n", .{});
-        std.debug.print("\tignore  = \"_\"\n", .{});
-        std.debug.print("\toutput  = ref | string\n", .{});
-        std.debug.print("\tref     = \\w+\n", .{});
-        std.debug.print("\tstring  = \"' {{text | interpolation}}* \"'\n", .{});
+        std.debug.print("\tbinding       = varname | elipsis | ignore\n", .{});
+        std.debug.print("\tvarname       = \\w+\n", .{});
+        std.debug.print("\tellipsis      = \"...\"\n", .{});
+        std.debug.print("\tignore        = \"_\"\n", .{});
+        std.debug.print("\toutput        = ref | string\n", .{});
+        std.debug.print("\tref           = \\w+\n", .{});
+        std.debug.print("\tstring        = \"'\" {{text | interpolation}}* \"'\"\n", .{});
+        std.debug.print("\tinterpolation = {{ref}}\n", .{});
 
         std.os.exit(1);
     }
@@ -329,6 +338,11 @@ test "Fail on missing input" {
     try failTest(src, input, DestructError.missing_input);
 }
 
+test "Fail on non alpha ref" {
+    const src = "[ one two 3hree] one two three";
+    const input = "aa bb cc";
+    try failTest(src, input, DestructError.ref_non_alpha);
+}
 //In this case aa can be seen as both the first and last element
 //So this program is correct in a way :D
 //test "Fail on missing input with elipse" {
