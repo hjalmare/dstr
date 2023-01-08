@@ -5,13 +5,8 @@ const Allocator = std.mem.Allocator;
 const isWhitespace = std.ascii.isWhitespace;
 
 //Set to true for debug output
-<<<<<<< HEAD
-const debug = true;
-const debugReader = true;
-=======
 const debug = false;
 const debugReader = false;
->>>>>>> 1ade4fe3602dae2cf9e878ab15cd6dc1ba7428cd
 
 pub const DestructError = error{ anon_ref, unknown_ref, unknown_function, missing_input, space_in_interpolation, ref_non_alpha };
 
@@ -23,7 +18,7 @@ pub const StringFragmentType = enum { chars, ref };
 
 const ExName = struct { name: []const u8, type: AstNodeType };
 
-const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
+pub const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
 
 const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
 
