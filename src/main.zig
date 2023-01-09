@@ -7,6 +7,7 @@ const parser = @import("./parser.zig");
 const DestructError = parser.DestructError;
 const Program = parser.Program;
 const AstFun = parser.AstFun;
+const AstNode = parser.AstNode;
 const StringFragmentType = parser.StringFragmentType;
 const compile = parser.compile;
 
@@ -82,34 +83,38 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
     var ret = ArrayList([]const u8).init(allocator);
 
     for (program.ex.items) |ex| {
-        switch (ex) {
-            .string => {
-                var strBuf = std.ArrayList(u8).init(allocator);
-                for (ex.string.items) |fragment| {
-                    switch (fragment.type) {
-                        StringFragmentType.chars => {
-                            try strBuf.appendSlice(fragment.chars);
-                        },
-                        StringFragmentType.ref => {
-                            //Resolve str ref
-                            var refStr = try resolveRef(program.symbols, line, fragment.chars);
-                            try strBuf.appendSlice(refStr);
-                        },
-                    }
-                }
-                try ret.append(strBuf.items);
-            },
-            .ref => {
-                var refStr = try resolveRef(program.symbols, line, ex.ref);
-                try ret.append(refStr);
-            },
-            .fun => {
-                try ret.append(try execBuiltin(allocator, program, line, ex.fun));
-            },
-        }
+        try ret.append(try resolveValue(allocator, program, line, ex));
     }
 
     return ret;
+}
+
+fn resolveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
+    switch (node) {
+        .string => {
+            var strBuf = std.ArrayList(u8).init(allocator);
+            for (node.string.items) |fragment| {
+                switch (fragment.type) {
+                    StringFragmentType.chars => {
+                        try strBuf.appendSlice(fragment.chars);
+                    },
+                    StringFragmentType.ref => {
+                        //Resolve str ref
+                        var refStr = try resolveRef(program.symbols, line, fragment.chars);
+                        try strBuf.appendSlice(refStr);
+                    },
+                }
+            }
+            return strBuf.items;
+        },
+        .ref => {
+            var refStr = try resolveRef(program.symbols, line, node.ref);
+            return refStr;
+        },
+        .fun => {
+            return execBuiltin(allocator, program, line, node.fun);
+        },
+    }
 }
 
 fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
@@ -118,18 +123,16 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
     //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
     //TODO: Also do typechecking during compile-time
     if (std.mem.eql(u8, "upper", funName)) {
-        if (fun.args.items.len != 1) {
+    	if (fun.args.items.len != 1) {
             std.debug.print(
                 "Failed to execute 'upper', expecte 0 arguments but got {d}\n",
                 .{fun.args.items.len - 1},
             );
             return DestructError.exec_arg_error;
         }
-
-        var arg1 = fun.args.items[0].ref;
-        var refStr = try resolveRef(program.symbols, line, arg1);
-        var refBuf = try allocator.alloc(u8, refStr.len);
-        _ = std.ascii.upperString(refBuf, refStr);
+        var arg1 = try resolveValue(allocator, program, line, fun.args.items[0]);
+        var refBuf = try allocator.alloc(u8, arg1.len);
+        _ = std.ascii.upperString(refBuf, arg1);
         return refBuf;
     } else if (std.mem.eql(u8, "first", funName)) {
         var arg1 = fun.args.items[0].ref;
@@ -319,6 +322,13 @@ test "Function first" {
     const src = "[ one two ] one.first(2) two";
     const input = "aaaa bb";
     const expectedOutput = [_][]const u8{ "aa", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "Function chaining" {
+    const src = "[ one two ] one.first(2).upper() two";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{ "AA", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 //==========================================================================

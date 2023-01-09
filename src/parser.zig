@@ -14,7 +14,7 @@ pub const DestructError = error{
     unknown_function,
     missing_input,
     space_in_interpolation,
-    ref_non_alphaa,
+    ref_non_alpha,
     exec_arg_error,
 };
 
@@ -26,7 +26,7 @@ pub const StringFragmentType = enum { chars, ref };
 
 const ExName = struct { name: []const u8, type: AstNodeType };
 
-const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
+pub const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
 
 const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
 
@@ -107,7 +107,7 @@ const StringReader = struct {
 
 fn readRefFuncArgs(allocator: Allocator, it: *StringReader, arglist: *ArrayList(AstNode)) std.mem.Allocator.Error!void {
     if (debug) {
-        std.debug.print("redRefFuncArgs\n", .{});
+        std.debug.print("Enter redRefFuncArgs\n", .{});
     }
 
     while (it.next()) |c| {
@@ -142,15 +142,46 @@ fn readRefFunc(allocator: Allocator, it: *StringReader, parent: AstNode) !AstNod
             if (debug) {
                 std.debug.print("\tAdding AstFun: '{s}'\n", .{name});
             }
+            //it.rewind();
+            _ = it.next();
             return AstNode{ .fun = AstFun{ .name = name, .args = args } };
         } else if (c == '}') {
             break;
         }
     }
     if (debug) {
-        std.debug.print("\tAdding AstFun: '{s}'\n", .{it.selection()});
+        std.debug.print("\tAdding AstFun Late: '{s}'\n", .{it.selection()});
     }
     return AstNode{ .fun = AstFun{ .name = it.selection(), .args = args } };
+}
+
+fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.Error!AstNode {
+    if (debug) {
+        std.debug.print("\tEnter readRefExpression\n", .{});
+    }
+    it.select();
+
+    while (it.next()) |c| {
+        if (c == '.') {
+            var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
+            std.debug.print("\tCompleted###\n", .{});
+            if (it.peek() == '.') {
+                return readRefFunc(allocator, it, ret);
+            } else {
+                return ret;
+            }
+        } else if (isWhitespace(c) or (c == ')')) {
+            if (debug) {
+                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
+            }
+            return AstNode{ .ref = it.selection() };
+        }
+    }
+
+    if (debug) {
+        std.debug.print("\tAdding RefInc: '{s}'\n", .{it.selectionInc()});
+    }
+    return AstNode{ .ref = it.selectionInc() };
 }
 
 fn readStringRef(it: *StringReader) !AstStringFragment {
@@ -245,32 +276,9 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
     return AstNode{ .string = fragments };
 }
 
-fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.Error!AstNode {
-    if (debug) {
-        std.debug.print("\tEnter readRefExpression\n", .{});
-    }
-    it.select();
-
-    while (it.next()) |c| {
-        if (c == '.') {
-            return readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-        } else if (isWhitespace(c) or (c == ')')) {
-            if (debug) {
-                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
-            }
-            return AstNode{ .ref = it.selection() };
-        }
-    }
-
-    if (debug) {
-        std.debug.print("\tAdding RefInc: '{s}'\n", .{it.selectionInc()});
-    }
-    return AstNode{ .ref = it.selectionInc() };
-}
-
 fn readSymbol(it: *StringReader) []const u8 {
     if (debug) {
-        std.debug.print("\tEnter readSymbol", .{});
+        std.debug.print("\tEnter readSymbol\n", .{});
     }
     it.select();
     while (it.next()) |c| {
@@ -316,7 +324,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
     while (it.next()) |c| {
         if ((c == '\'') or (c == '"')) {
             try ex.append(try readStringExpression(allocator, &it, c));
-        } else if (!isWhitespace(c)) {
+        } else if (!isWhitespace(c) and (c != ')')) {
             try ex.append(try readRefExpression(allocator, &it));
         }
     }
