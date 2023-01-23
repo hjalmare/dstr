@@ -123,7 +123,7 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
     //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
     //TODO: Also do typechecking during compile-time
     if (std.mem.eql(u8, "upper", funName)) {
-    	if (fun.args.items.len != 1) {
+        if (fun.args.items.len != 1) {
             std.debug.print(
                 "Failed to execute 'upper', expecte 0 arguments but got {d}\n",
                 .{fun.args.items.len - 1},
@@ -352,8 +352,7 @@ test "Fail on missing input" {
 
 test "Fail on non alpha ref" {
     const src = "[ one two 3hree] one two three";
-    const input = "aa bb cc";
-    try failTest(src, input, DestructError.ref_non_alpha);
+    try failCompile(src, DestructError.ref_non_alpha);
 }
 //In this case aa can be seen as both the first and last element
 //So this program is correct in a way :D

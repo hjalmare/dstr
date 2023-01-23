@@ -2,6 +2,7 @@ const std = @import("std");
 const expect = @import("std").testing.expect;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+const ascii = std.ascii;
 const isWhitespace = std.ascii.isWhitespace;
 
 //Set to true for debug output
@@ -308,9 +309,15 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
             var sym = readSymbol(&it);
             if (sym.len > 0) {
                 if (debug) {
-                    std.debug.print("\tAdding SymbolBinding: '{s}'\n", .{sym});
+                    std.debug.print("\tAdding SymbolBinding: '{c}'\n", .{sym[0]});
                 }
-                try symbols.append(sym);
+
+                if (ascii.isDigit(sym[0])) {
+                    std.debug.print("Error: symbols must start with a letter", .{});
+                    return DestructError.ref_non_alpha;
+                } else {
+                    try symbols.append(sym);
+                }
             }
         }
 
