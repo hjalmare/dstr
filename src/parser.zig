@@ -312,11 +312,15 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
                     std.debug.print("\tAdding SymbolBinding: '{c}'\n", .{sym[0]});
                 }
 
-                if (ascii.isDigit(sym[0])) {
-                    std.debug.print("Error: symbols must start with a letter", .{});
-                    return DestructError.ref_non_alpha;
-                } else {
+                var isIgnored = std.mem.eql(u8, "_", sym);
+                var isEllipsis = std.mem.eql(u8, "...", sym);
+                var leadAlpha = ascii.isAlphabetic(sym[0]);
+
+                if (isIgnored or isEllipsis or leadAlpha) {
                     try symbols.append(sym);
+                } else {
+                    std.debug.print("Error: invalid symbol: {s}\n", .{sym});
+                    return DestructError.ref_non_alpha;
                 }
             }
         }
