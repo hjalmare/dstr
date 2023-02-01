@@ -3,12 +3,14 @@ const expect = @import("std").testing.expect;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
+const builtin = @import("./builtin.zig");
+const DestructError = builtin.DestructError;
+const Program = builtin.Program;
+const AstFun = builtin.AstFun;
+const AstNode = builtin.AstNode;
+const StringFragmentType = builtin.StringFragmentType;
+
 const parser = @import("./parser.zig");
-const DestructError = parser.DestructError;
-const Program = parser.Program;
-const AstFun = parser.AstFun;
-const AstNode = parser.AstNode;
-const StringFragmentType = parser.StringFragmentType;
 const compile = parser.compile;
 
 //Set to true for debug output

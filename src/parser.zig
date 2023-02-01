@@ -5,35 +5,21 @@ const Allocator = std.mem.Allocator;
 const ascii = std.ascii;
 const isWhitespace = std.ascii.isWhitespace;
 
+const builtin = @import("./builtin.zig");
+const DestructError = builtin.DestructError;
+const StringFragmentType = builtin.StringFragmentType;
+const AstStringFragment = builtin.AstStringFragment;
+const AstNodeType = builtin.AstNodeType;
+const AstNode = builtin.AstNode;
+const AstFun = builtin.AstFun;
+const Program = builtin.Program;
+
 //Set to true for debug output
 const debug = false;
 const debugReader = false;
 
-pub const DestructError = error{
-    anon_ref,
-    unknown_ref,
-    unknown_function,
-    missing_input,
-    space_in_interpolation,
-    ref_non_alpha,
-    exec_arg_error,
-};
-
 const Mode = enum { START, ARG_LIST, ARG_NAME, EX_LIST, EX_NAME, EX_SQT_STR, EX_SQT_REF, EX_SQT_ESC };
-
-const AstNodeType = enum { string, ref, fun };
-
-pub const StringFragmentType = enum { chars, ref };
-
 const ExName = struct { name: []const u8, type: AstNodeType };
-
-pub const AstNode = union(AstNodeType) { ref: []const u8, string: ArrayList(AstStringFragment), fun: AstFun };
-
-const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
-
-pub const AstFun = struct { name: []const u8, args: ArrayList(AstNode) };
-
-pub const Program = struct { symbols: ArrayList([]const u8), ex: ArrayList(AstNode) };
 
 const StringReader = struct {
     src: []const u8,
