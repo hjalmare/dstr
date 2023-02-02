@@ -88,3 +88,4 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * use AstNode instead of ref in string fragment
 * fancy builtins
 * compiletime typecheck
+* faster stdio
