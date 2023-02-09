@@ -8,7 +8,6 @@ const DestructError = builtin.DestructError;
 const Program = builtin.Program;
 const AstFun = builtin.AstFun;
 const AstNode = builtin.AstNode;
-const StringFragmentType = builtin.StringFragmentType;
 
 const parser = @import("./parser.zig");
 const compile = parser.compile;
@@ -93,21 +92,8 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
 
 fn resolveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
     switch (node) {
-        .string => {
-            var strBuf = std.ArrayList(u8).init(allocator);
-            for (node.string.items) |fragment| {
-                switch (fragment.type) {
-                    StringFragmentType.chars => {
-                        try strBuf.appendSlice(fragment.chars);
-                    },
-                    StringFragmentType.ref => {
-                        //Resolve str ref
-                        var refStr = try resolveRef(program.symbols, line, fragment.chars);
-                        try strBuf.appendSlice(refStr);
-                    },
-                }
-            }
-            return strBuf.items;
+        .chars => {
+            return node.chars;
         },
         .ref => {
             var refStr = try resolveRef(program.symbols, line, node.ref);
@@ -145,6 +131,12 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
         var result = refStr[0..asInt];
         std.debug.print("first: '{s}' \n", .{result});
         return result;
+    } else if (std.mem.eql(u8, "str", funName)) {
+        var strBuf = std.ArrayList(u8).init(allocator);
+        for (fun.args.items) |arg| {
+            try strBuf.appendSlice(try resolveValue(allocator, program, line, arg));
+        }
+        return strBuf.items;
     }
 
     return DestructError.unknown_function;

@@ -7,8 +7,6 @@ const isWhitespace = std.ascii.isWhitespace;
 
 const builtin = @import("./builtin.zig");
 const DestructError = builtin.DestructError;
-const StringFragmentType = builtin.StringFragmentType;
-const AstStringFragment = builtin.AstStringFragment;
 const AstNodeType = builtin.AstNodeType;
 const AstNode = builtin.AstNode;
 const AstFun = builtin.AstFun;
@@ -171,7 +169,7 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.
     return AstNode{ .ref = it.selectionInc() };
 }
 
-fn readStringRef(it: *StringReader) !AstStringFragment {
+fn readStringRef(it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("\tEnter readStringRef\n", .{});
     }
@@ -196,13 +194,12 @@ fn readStringRef(it: *StringReader) !AstStringFragment {
         std.debug.print("\tAdding StringRef: '{s}'\n", .{it.selection()});
     }
 
-    return AstStringFragment{
-        .type = StringFragmentType.ref,
-        .chars = it.selection(),
+    return AstNode{
+        .ref = it.selection(),
     };
 }
 
-fn readStringChars(it: *StringReader, typ: u8) AstStringFragment {
+fn readStringChars(it: *StringReader, typ: u8) AstNode {
     if (debug) {
         std.debug.print("\tEnter readStringChars\n", .{});
     }
@@ -216,8 +213,7 @@ fn readStringChars(it: *StringReader, typ: u8) AstStringFragment {
     if (debug) {
         std.debug.print("\tAdding StringFragment: '{s}'\n", .{it.selection()});
     }
-    var ret = AstStringFragment{
-        .type = StringFragmentType.chars,
+    var ret = AstNode{
         .chars = it.selection(),
     };
 
@@ -234,7 +230,7 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
         std.debug.print("\tEnter readStringExpression\n", .{});
     }
     // std.debug.print("{p} {p}", .{allocator, it});
-    var fragments = ArrayList(AstStringFragment).init(allocator);
+    var fragments = ArrayList(AstNode).init(allocator);
     var escaped = false;
 
     while (it.next()) |c| {
@@ -260,7 +256,7 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
     if (debug) {
         std.debug.print("\tString Exit {c}\n", .{it.peek()});
     }
-    return AstNode{ .string = fragments };
+    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments } };
 }
 
 fn readSymbol(it: *StringReader) []const u8 {

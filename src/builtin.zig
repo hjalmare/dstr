@@ -11,19 +11,18 @@ pub const DestructError = error{
     exec_arg_error,
 };
 
-pub const StringFragmentType = enum { chars, ref };
-pub const AstStringFragment = struct { type: StringFragmentType, chars: []const u8 };
-
-pub const AstNodeType = enum { string, ref, fun };
+pub const AstNodeType = enum { ref, fun, chars };
 pub const AstNode = union(AstNodeType) {
     ref: []const u8,
-    string: ArrayList(AstStringFragment),
     fun: AstFun,
+    chars: []const u8,
 };
+
 pub const AstFun = struct {
     name: []const u8,
     args: ArrayList(AstNode),
 };
+
 pub const Program = struct {
     symbols: ArrayList([]const u8),
     ex: ArrayList(AstNode),
