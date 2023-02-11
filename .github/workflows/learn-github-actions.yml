@@ -10,3 +10,10 @@ jobs:
         with:
           version: 0.10.1
       - run: zig build test
+      - run: zig build -Dtarget=x86_64-linux
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Upload Linux binary
+          path: zig-out/bin/dstr
