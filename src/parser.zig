@@ -149,7 +149,6 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.
     while (it.next()) |c| {
         if (c == '.') {
             var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-            std.debug.print("\tCompleted###\n", .{});
             if (it.peek() == '.') {
                 return readRefFunc(allocator, it, ret);
             } else {
@@ -187,7 +186,6 @@ fn readStringRef(allocator: Allocator, it: *StringReader) !AstNode {
             return DestructError.space_in_interpolation;
         } else if (c == '.') {
             var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-            std.debug.print("\tCompleted###\n", .{});
             if (it.peek() == '.') {
                 return readRefFunc(allocator, it, ret);
             } else {
