@@ -325,6 +325,13 @@ test "Function chaining" {
     const expectedOutput = [_][]const u8{ "AA", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
+
+test "Function in string" {
+    const src = "[ one two ] 'a{one.upper()}a' two";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "aAAa", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
 //==========================================================================
 // Fails
 
