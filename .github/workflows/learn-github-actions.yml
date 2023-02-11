@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: zig build -Dtarget=x86_64-linux
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: Linux x86
           path: zig-out/bin/dstr
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: zig build -Dtarget=macos-aarch64
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: Mac ARM
           path: zig-out/bin/dstr
