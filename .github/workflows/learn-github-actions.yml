@@ -10,25 +10,8 @@ jobs:
         with:
           version: 0.10.1
       - run: zig build test
-  linux-binary:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.10.1
       - run: zig build -Dtarget=x86_64-linux
       - uses: actions/upload-artifact@v3
         with:
           name: Linux x86
-          path: zig-out/bin/dstr
-  mac-arm-binary:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.10.1
-      - run: zig build -Dtarget=macos-aarch64
-      - uses: actions/upload-artifact@v3
-        with:
-          name: Mac ARM
           path: zig-out/bin/dstr
