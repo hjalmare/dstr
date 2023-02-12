@@ -6,6 +6,8 @@ Because cut is hard.
 [Releases](https://github.com/hjalmare/dstr/releases)
 
 ## Usage
+dstr reads input from sytem in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
+Similar to cut and awk.
 
 ```
 dstr "[destructoring] output" executable?
@@ -13,7 +15,7 @@ dstr "[destructoring] output" executable?
 
 ### Destructoring
 dstr splits its input from system in, and uses the destructoring expression to bind
-each part of the split input to a symbol name.
+each part of the split input to a symbol name. 
 
 `[a b]` &ensp; binds the first and second parts of the input to `a` and `b`.
 
