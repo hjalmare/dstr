@@ -1,6 +1,10 @@
 name: Build binaries
 run-name: ${{ github.actor }} is learning GitHub Actions
 on: [push]
+
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
