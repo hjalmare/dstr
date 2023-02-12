@@ -15,7 +15,7 @@ jobs:
           version: 0.10.1
 
       - run: echo ${{ github.ref }} > src/VERSION.txt      
-      - run: cat src/VERSIONS.txt
+      - run: cat src/VERSION.txt
       - run: zig build test
       - run: zig build -Dtarget=x86_64-linux
       
