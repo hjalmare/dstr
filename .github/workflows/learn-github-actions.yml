@@ -14,19 +14,21 @@ jobs:
         with:
           version: 0.10.1
 
-      - run: echo ${{ github.ref }} > src/VERSION.txt      
+      - run: echo ${{ github.ref_name }} > src/VERSION.txt      
       - run: cat src/VERSION.txt
       - run: zig build test
-      - run: zig build -Dtarget=x86_64-linux
+       
+      - name: Build x86 Linux
+        run: ./build_pak.sh x86_64-linux
       
-      - name: Save linux x86 binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: Linux x86
-          path: zig-out/bin/dstr
-  
+      - name: Build arm64 macOS
+        run: ./build_pak.sh aarch64-macos
+
+      - name: Build x86 macOS
+        run: ./build_pak.sh x86_64-macos
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: zig-out/bin/dstr
+          files: releases/*
