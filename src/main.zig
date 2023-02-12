@@ -192,6 +192,7 @@ pub fn main() !void {
 
     //Read system in
     const stdin = std.io.getStdIn().reader();
+    //TODO; This method of reading stdin seems very slow
     var input: ?[]u8 = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
 
     const stdout = std.io.getStdOut();
