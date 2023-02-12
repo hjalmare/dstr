@@ -10,6 +10,6 @@ then
     exit 1
 fi
 
-export TAG = $(date -I)-$(expr $(git tag | wc -l) + 1)
+export TAG=$(date -I).$(expr $(git tag | wc -l) + 1)
 git tag $TAG
 git push origin $TAG
