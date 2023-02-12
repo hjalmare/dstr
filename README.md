@@ -1,6 +1,10 @@
 # dstr
 Because cut is hard.
 
+## Download
+
+[Releases](https://github.com/hjalmare/dstr/releases)
+
 ## Usage
 
 ```
