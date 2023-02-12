@@ -149,7 +149,6 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.
     while (it.next()) |c| {
         if (c == '.') {
             var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-            std.debug.print("\tCompleted###\n", .{});
             if (it.peek() == '.') {
                 return readRefFunc(allocator, it, ret);
             } else {
@@ -169,7 +168,7 @@ fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.
     return AstNode{ .ref = it.selectionInc() };
 }
 
-fn readStringRef(it: *StringReader) !AstNode {
+fn readStringRef(allocator: Allocator, it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("\tEnter readStringRef\n", .{});
     }
@@ -183,13 +182,23 @@ fn readStringRef(it: *StringReader) !AstNode {
     }
 
     while (it.next()) |c| {
-        if (c == '}') {
-            break;
-        }
         if (isWhitespace(c)) {
             return DestructError.space_in_interpolation;
+        } else if (c == '.') {
+            var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
+            if (it.peek() == '.') {
+                return readRefFunc(allocator, it, ret);
+            } else {
+                return ret;
+            }
+        } else if ((c == '}') or (c == ')')) {
+            if (debug) {
+                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
+            }
+            return AstNode{ .ref = it.selection() };
         }
     }
+
     if (debug) {
         std.debug.print("\tAdding StringRef: '{s}'\n", .{it.selection()});
     }
@@ -241,7 +250,7 @@ fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNo
         } else if (c == typ) {
             break;
         } else if (c == '{') {
-            try fragments.append(try readStringRef(it));
+            try fragments.append(try readStringRef(allocator, it));
         } else if (c == '\\') {
             escaped = true;
         } else {
