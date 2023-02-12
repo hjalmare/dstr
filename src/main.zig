@@ -14,6 +14,7 @@ const compile = parser.compile;
 
 //Set to true for debug output
 const debug = false;
+const VERSION = @embedFile("VERSION.txt");
 
 fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
@@ -164,6 +165,8 @@ pub fn main() !void {
     }
 
     if ((args.len < 2) or (args.len > 3)) {
+        std.debug.print("dstr version: {s}\n", .{VERSION});
+
         std.debug.print("Please invoke using: \n", .{});
         std.debug.print("\t./dstr [expression]\n", .{});
         std.debug.print("\t./dstr [expression] [executable]\n", .{});
