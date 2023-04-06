@@ -59,6 +59,22 @@ const StringReader = struct {
         }
     }
 
+    pub fn skipWhitespace(self: *StringReader) void {
+        while (isWhitespace(self.peek())) {
+            if (self.next() == null) {
+                break;
+            }
+        }
+    }
+
+    pub fn skipWhitespaceUntil(self: *StringReader, c: u8) !void {
+        self.skipWhitespace();
+        var n = self.next();
+        if (n != c) {
+            std.debug.print("Unexpected character '{c}' expected '{c}'", .{ .n, .c });
+            return DestructError.unexpected_char;
+        }
+    }
     //Exclusive selection
     //Returns selection from the last select() until the previously
     //read char
@@ -332,4 +348,102 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
     }
 
     return Program{ .symbols = symbols, .ex = ex };
+}
+
+//New parser, each read step ends on its terminating character
+// so that the following step can peek that char
+pub fn wrapRefInFun(allocator: Allocator, refName: []const u8, it: *StringReader): !AstNode {
+    //Read funName
+    //Read args
+    //return wrapped ref
+}
+
+
+pub fn readArgList(allocator: Allocator, it: *StringReader) ![]AstNode {
+    var args = ArrayList(AstNode).init(allocator);
+    //This should take the arglist as ref so that wrapping can be fast
+    //TODO: impl
+    return args.items;
+}
+
+pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
+    it.select();
+
+    while (it.next()) |c| {
+        if (c == '.') {
+            //RefFollowed by func
+        } else if (c == '(') {
+            //Fun
+            var funName = it.selection();
+            var args = readArgList(allocator, it);
+            return AstNode{ .fun = AstFun{ .name = funName, .args = args } };
+        } else if (isWhitespace(c)) {
+            //LoneRef
+            var refName = it.selection();
+            return AstNode{ .ref = refName };
+        }
+    }
+}
+
+pub fn readEscapedStringCharacter(allocator: Allocator, it: *StringReader) !AstNode {
+    var c = it.next();
+
+    if (c != null) {
+        var buff = try allocator.alloc(u8, 1);
+        buff[0] = switch (c) {
+            't' => '\t',
+            'n' => '\n',
+            else => c,
+        };
+        return AstNode{ .chars = buff };
+    }
+    //If were at the end of the string just return an empty token
+    return AstNode{ .chars = u8[0] };
+}
+
+pub fn readStringExpression2(allocator: Allocator, it: *StringReader) !AstNode {
+    var qtType = it.peek();
+    var fragments = ArrayList(AstNode).init(allocator);
+
+    if (debug and !((qtType == '\'') or (qtType == '"'))) {
+        std.debug.print("Error: invalid start of str block: {s}\n", .{qtType});
+        return DestructError.missing_input;
+    }
+    it.select();
+    while (it.next()) |c| {
+        if (c == qtType) {
+            //return
+            break;
+        } else if (c == '{') {
+            try fragments.append(AstNode{ .chars = it.selection() });
+            //go back to readAstNode? can there be a string here
+            it.next(); //Skip the leading { when going back to }
+            try fragments.append(readAstNode2(allocator, it));
+            it.skipWhitespaceUntil('}');
+            it.next();
+            it.select();
+        } else if (c == '\\') {
+            //deal with escape here
+            try fragments.append(AstNode{ .chars = it.selection() });
+            try fragments.append(try readEscapedStringCharacter(allocator, it));
+            it.next();
+            it.select();
+        }
+    }
+
+    try fragments.append(AstNode{ .chars = it.selection() });
+    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments } };
+}
+
+pub fn readAstNode2(allocator: Allocator, it: *StringReader) !AstNode {
+    it.skipWhitespace();
+
+    //TODO: skip while here?
+    while (it.next()) |c| {
+        if ((c == '\'') or (c == '"')) {
+            return readStringExpression2(allocator, it);
+        } else if (!isWhitespace(c) and (c != ')')) {
+            return readRefOrFun(allocator, it);
+        }
+    }
 }

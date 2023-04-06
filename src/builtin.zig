@@ -9,6 +9,7 @@ pub const DestructError = error{
     space_in_interpolation,
     ref_non_alpha,
     exec_arg_error,
+    unexpected_char,
 };
 
 pub const AstNodeType = enum { ref, fun, chars };
