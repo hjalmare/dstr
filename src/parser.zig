@@ -59,6 +59,14 @@ const StringReader = struct {
         }
     }
 
+    pub fn selectNext(self: *StringReader) void {
+        self.selectStart = self.offset;
+        if (debugReader) {
+            var ret = self.src[self.offset - 1];
+            std.debug.print("\t\tReader.selectNext offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+        }
+    }
+
     pub fn skipWhitespace(self: *StringReader) void {
         while (isWhitespace(self.peek())) {
             if (self.next() == null) {
@@ -69,11 +77,20 @@ const StringReader = struct {
 
     pub fn skipWhitespaceUntil(self: *StringReader, c: u8) !void {
         self.skipWhitespace();
-        var n = self.next();
+        var n = self.peek();
         if (n != c) {
-            std.debug.print("Unexpected character '{c}' expected '{c}'", .{ .n, .c });
+            std.debug.print("Unexpected character '{c}' expected '{c}'", .{ n, c });
             return DestructError.unexpected_char;
         }
+    }
+
+    pub fn nextNonWhitespace(self: *StringReader) ?u8 {
+        while (self.next()) |c| {
+            if (!isWhitespace(c)) {
+                return c;
+            }
+        }
+        return null;
     }
     //Exclusive selection
     //Returns selection from the last select() until the previously
@@ -105,184 +122,6 @@ const StringReader = struct {
         }
     }
 };
-
-fn readRefFuncArgs(allocator: Allocator, it: *StringReader, arglist: *ArrayList(AstNode)) std.mem.Allocator.Error!void {
-    if (debug) {
-        std.debug.print("Enter redRefFuncArgs\n", .{});
-    }
-
-    while (it.next()) |c| {
-        if (c == ')') {
-            break;
-        } else {
-            var r = try readRefExpression(allocator, it);
-            try arglist.append(r);
-            if (it.peek() == ')') {
-                break;
-            }
-        }
-    }
-}
-
-fn readRefFunc(allocator: Allocator, it: *StringReader, parent: AstNode) !AstNode {
-    if (debug) {
-        std.debug.print("Enter readRefFunc\n", .{});
-    }
-
-    _ = it.next(); // skip leading .
-    it.select();
-
-    var args = ArrayList(AstNode).init(allocator);
-    try args.append(parent);
-
-    while (it.next()) |c| {
-        if (c == '(') {
-            //parse arglist
-            var name = it.selection();
-            try readRefFuncArgs(allocator, it, &args);
-            if (debug) {
-                std.debug.print("\tAdding AstFun: '{s}'\n", .{name});
-            }
-            //it.rewind();
-            _ = it.next();
-            return AstNode{ .fun = AstFun{ .name = name, .args = args } };
-        } else if (c == '}') {
-            break;
-        }
-    }
-    if (debug) {
-        std.debug.print("\tAdding AstFun Late: '{s}'\n", .{it.selection()});
-    }
-    return AstNode{ .fun = AstFun{ .name = it.selection(), .args = args } };
-}
-
-fn readRefExpression(allocator: Allocator, it: *StringReader) std.mem.Allocator.Error!AstNode {
-    if (debug) {
-        std.debug.print("\tEnter readRefExpression\n", .{});
-    }
-    it.select();
-
-    while (it.next()) |c| {
-        if (c == '.') {
-            var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-            if (it.peek() == '.') {
-                return readRefFunc(allocator, it, ret);
-            } else {
-                return ret;
-            }
-        } else if (isWhitespace(c) or (c == ')')) {
-            if (debug) {
-                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
-            }
-            return AstNode{ .ref = it.selection() };
-        }
-    }
-
-    if (debug) {
-        std.debug.print("\tAdding RefInc: '{s}'\n", .{it.selectionInc()});
-    }
-    return AstNode{ .ref = it.selectionInc() };
-}
-
-fn readStringRef(allocator: Allocator, it: *StringReader) !AstNode {
-    if (debug) {
-        std.debug.print("\tEnter readStringRef\n", .{});
-    }
-
-    _ = it.next(); // skip leading {
-    it.select();
-
-    //Fail on leading space
-    if (isWhitespace(it.peek())) {
-        return DestructError.space_in_interpolation;
-    }
-
-    while (it.next()) |c| {
-        if (isWhitespace(c)) {
-            return DestructError.space_in_interpolation;
-        } else if (c == '.') {
-            var ret = try readRefFunc(allocator, it, AstNode{ .ref = it.selection() });
-            if (it.peek() == '.') {
-                return readRefFunc(allocator, it, ret);
-            } else {
-                return ret;
-            }
-        } else if ((c == '}') or (c == ')')) {
-            if (debug) {
-                std.debug.print("\tAdding Ref: '{s}'\n", .{it.selection()});
-            }
-            return AstNode{ .ref = it.selection() };
-        }
-    }
-
-    if (debug) {
-        std.debug.print("\tAdding StringRef: '{s}'\n", .{it.selection()});
-    }
-
-    return AstNode{
-        .ref = it.selection(),
-    };
-}
-
-fn readStringChars(it: *StringReader, typ: u8) AstNode {
-    if (debug) {
-        std.debug.print("\tEnter readStringChars\n", .{});
-    }
-    it.select();
-
-    while (it.next()) |c| {
-        if ((c == typ) or (c == '{') or (c == '\\')) {
-            break;
-        }
-    }
-    if (debug) {
-        std.debug.print("\tAdding StringFragment: '{s}'\n", .{it.selection()});
-    }
-    var ret = AstNode{
-        .chars = it.selection(),
-    };
-
-    if ((it.peek() == '{') or (it.peek() == '\\')) {
-        //Ugly hack but it works, this way readStringExpression
-        //sees the { token
-        it.rewind();
-    }
-    return ret;
-}
-
-fn readStringExpression(allocator: Allocator, it: *StringReader, typ: u8) !AstNode {
-    if (debug) {
-        std.debug.print("\tEnter readStringExpression\n", .{});
-    }
-    // std.debug.print("{p} {p}", .{allocator, it});
-    var fragments = ArrayList(AstNode).init(allocator);
-    var escaped = false;
-
-    while (it.next()) |c| {
-        if (escaped) {
-            //Last char was \
-            try fragments.append(readStringChars(it, typ));
-            escaped = false;
-        } else if (c == typ) {
-            break;
-        } else if (c == '{') {
-            try fragments.append(try readStringRef(allocator, it));
-        } else if (c == '\\') {
-            escaped = true;
-        } else {
-            try fragments.append(readStringChars(it, typ));
-        }
-
-        if (it.peek() == typ) {
-            break;
-        }
-    }
-
-    if (debug) {
-        std.debug.print("\tString Exit {c}\n", .{it.peek()});
-    }
-    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments } };
-}
 
 fn readSymbol(it: *StringReader) []const u8 {
     if (debug) {
@@ -316,7 +155,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
             var sym = readSymbol(&it);
             if (sym.len > 0) {
                 if (debug) {
-                    std.debug.print("\tAdding SymbolBinding: '{c}'\n", .{sym[0]});
+                    std.debug.print("\tAdding SymbolBinding: '{s}'\n", .{sym});
                 }
 
                 var isIgnored = std.mem.eql(u8, "_", sym);
@@ -339,12 +178,11 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
 
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
-    while (it.next()) |c| {
-        if ((c == '\'') or (c == '"')) {
-            try ex.append(try readStringExpression(allocator, &it, c));
-        } else if (!isWhitespace(c) and (c != ')')) {
-            try ex.append(try readRefExpression(allocator, &it));
+    while (it.nextNonWhitespace()) |_| {
+        if (debug) {
+            std.debug.print("Adding expr\n", .{});
         }
+        try ex.append(try readAstNode(allocator, &it));
     }
 
     return Program{ .symbols = symbols, .ex = ex };
@@ -352,43 +190,104 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
 
 //New parser, each read step ends on its terminating character
 // so that the following step can peek that char
-pub fn wrapRefInFun(allocator: Allocator, refName: []const u8, it: *StringReader): !AstNode {
-    //Read funName
-    //Read args
-    //return wrapped ref
+pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !AstNode {
+    if (debug) {
+        std.debug.print("Enter wrapInFun\n", .{});
+    }
+
+    _ = it.next(); //Skip leading '.'
+    it.select();
+
+    while (it.next()) |c| {
+        if (c == '.') {
+            return DestructError.unexpected_char;
+        } else if (c == '(') {
+            //Fun
+            var funName = it.selection();
+            try readArgList(allocator, it, argList);
+            if (debug) {
+                std.debug.print("\tProducing fun '{s}'\n", .{funName});
+            }
+            var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+            if (it.next()) |lahead| {
+                if (isWhitespace(lahead) or lahead == '}') {
+                    return ret;
+                } else if (lahead == '.') {
+                    var innerArgs = ArrayList(AstNode).init(allocator);
+                    try innerArgs.append(ret);
+                    return wrapInFun(allocator, &innerArgs, it);
+                } else {
+                    return DestructError.unexpected_char;
+                }
+            }
+        } else if (isWhitespace(c)) {
+            //LoneRef
+            return DestructError.unexpected_char;
+        }
+    }
+
+    return DestructError.unexpected_char;
 }
 
+pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(AstNode)) !void {
+    if (debug) {
+        std.debug.print("Enter readArgList\n", .{});
+    }
 
-pub fn readArgList(allocator: Allocator, it: *StringReader) ![]AstNode {
-    var args = ArrayList(AstNode).init(allocator);
-    //This should take the arglist as ref so that wrapping can be fast
-    //TODO: impl
-    return args.items;
+    _ = it.next(); //Skip leading '('
+    //TODO: handle end of string (syntax error missing ')' )
+    it.skipWhitespace();
+    while (it.peek() != ')') {
+        try args.append(try readAstNode(allocator, it));
+        it.skipWhitespace();
+    }
+
+    return;
 }
 
 pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
+    if (debug) {
+        std.debug.print("Enter readRefOrFun\n", .{});
+    }
     it.select();
 
     while (it.next()) |c| {
         if (c == '.') {
             //RefFollowed by func
+            var argList = ArrayList(AstNode).init(allocator);
+            try argList.append(AstNode{ .ref = it.selection() });
+            return wrapInFun(allocator, &argList, it);
         } else if (c == '(') {
             //Fun
             var funName = it.selection();
-            var args = readArgList(allocator, it);
-            return AstNode{ .fun = AstFun{ .name = funName, .args = args } };
-        } else if (isWhitespace(c)) {
+            var argList = ArrayList(AstNode).init(allocator);
+            try readArgList(allocator, it, &argList);
+            return AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+        } else if (isWhitespace(c) or c == '}' or c == ')') {
             //LoneRef
             var refName = it.selection();
+            if (debug) {
+                std.debug.print("\tProducing ref '{s}'\n", .{refName});
+            }
             return AstNode{ .ref = refName };
         }
     }
+
+    //End of input reached
+    var refName = it.selectionInc();
+    if (debug) {
+        std.debug.print("\tProducing ref '{s}'\n", .{refName});
+    }
+    return AstNode{ .ref = refName };
 }
 
 pub fn readEscapedStringCharacter(allocator: Allocator, it: *StringReader) !AstNode {
-    var c = it.next();
+    if (debug) {
+        std.debug.print("Enter readEscapedStringCharacter\n", .{});
+    }
+    var cn = it.next();
 
-    if (c != null) {
+    if (cn) |c| {
         var buff = try allocator.alloc(u8, 1);
         buff[0] = switch (c) {
             't' => '\t',
@@ -398,18 +297,22 @@ pub fn readEscapedStringCharacter(allocator: Allocator, it: *StringReader) !AstN
         return AstNode{ .chars = buff };
     }
     //If were at the end of the string just return an empty token
-    return AstNode{ .chars = u8[0] };
+    return AstNode{ .chars = try allocator.alloc(u8, 0) };
 }
 
-pub fn readStringExpression2(allocator: Allocator, it: *StringReader) !AstNode {
+pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
+    if (debug) {
+        std.debug.print("Enter readStringExpression\n", .{});
+    }
     var qtType = it.peek();
     var fragments = ArrayList(AstNode).init(allocator);
 
     if (debug and !((qtType == '\'') or (qtType == '"'))) {
-        std.debug.print("Error: invalid start of str block: {s}\n", .{qtType});
+        std.debug.print("Error: invalid start of str block: {c}\n", .{qtType});
         return DestructError.missing_input;
     }
-    it.select();
+
+    it.selectNext();
     while (it.next()) |c| {
         if (c == qtType) {
             //return
@@ -417,33 +320,42 @@ pub fn readStringExpression2(allocator: Allocator, it: *StringReader) !AstNode {
         } else if (c == '{') {
             try fragments.append(AstNode{ .chars = it.selection() });
             //go back to readAstNode? can there be a string here
-            it.next(); //Skip the leading { when going back to }
-            try fragments.append(readAstNode2(allocator, it));
-            it.skipWhitespaceUntil('}');
-            it.next();
+            _ = it.next(); //Skip the leading { when going back to }
+            try fragments.append(try readAstNode(allocator, it));
+            try it.skipWhitespaceUntil('}');
+            _ = it.next();
             it.select();
         } else if (c == '\\') {
             //deal with escape here
             try fragments.append(AstNode{ .chars = it.selection() });
             try fragments.append(try readEscapedStringCharacter(allocator, it));
-            it.next();
+            _ = it.next();
             it.select();
         }
     }
 
+    if (debug) {
+        std.debug.print("\tFinal String fragment '{s}'\n", .{it.selection()});
+    }
     try fragments.append(AstNode{ .chars = it.selection() });
-    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments } };
+    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments.items } };
 }
 
-pub fn readAstNode2(allocator: Allocator, it: *StringReader) !AstNode {
+pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
+    if (debug) {
+        std.debug.print("Enter readAstNode\n", .{});
+    }
     it.skipWhitespace();
 
     //TODO: skip while here?
-    while (it.next()) |c| {
-        if ((c == '\'') or (c == '"')) {
-            return readStringExpression2(allocator, it);
-        } else if (!isWhitespace(c) and (c != ')')) {
-            return readRefOrFun(allocator, it);
-        }
+    //if (it.peek()) |c| {
+    var c = it.peek();
+    if ((c == '\'') or (c == '"')) {
+        return readStringExpression(allocator, it);
+    } else if (!isWhitespace(c) and (c != ')')) {
+        return readRefOrFun(allocator, it);
     }
+    //}
+
+    return DestructError.unexpected_char;
 }

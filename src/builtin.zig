@@ -21,7 +21,7 @@ pub const AstNode = union(AstNodeType) {
 
 pub const AstFun = struct {
     name: []const u8,
-    args: ArrayList(AstNode),
+    args: []const AstNode,
 };
 
 pub const Program = struct {

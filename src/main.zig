@@ -112,20 +112,20 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
     //TODO: change astfun to have a enum for functions, so theres no need to do mem.exl every time
     //TODO: Also do typechecking during compile-time
     if (std.mem.eql(u8, "upper", funName)) {
-        if (fun.args.items.len != 1) {
+        if (fun.args.len != 1) {
             std.debug.print(
                 "Failed to execute 'upper', expecte 0 arguments but got {d}\n",
-                .{fun.args.items.len - 1},
+                .{fun.args.len - 1},
             );
             return DestructError.exec_arg_error;
         }
-        var arg1 = try resolveValue(allocator, program, line, fun.args.items[0]);
+        var arg1 = try resolveValue(allocator, program, line, fun.args[0]);
         var refBuf = try allocator.alloc(u8, arg1.len);
         _ = std.ascii.upperString(refBuf, arg1);
         return refBuf;
     } else if (std.mem.eql(u8, "first", funName)) {
-        var arg1 = fun.args.items[0].ref;
-        var arg2 = fun.args.items[1].ref;
+        var arg1 = fun.args[0].ref;
+        var arg2 = fun.args[1].ref;
         var asInt = try std.fmt.parseInt(usize, arg2, 10);
 
         var refStr = try resolveRef(program.symbols, line, arg1);
@@ -134,7 +134,7 @@ fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u
         return result;
     } else if (std.mem.eql(u8, "str", funName)) {
         var strBuf = std.ArrayList(u8).init(allocator);
-        for (fun.args.items) |arg| {
+        for (fun.args) |arg| {
             try strBuf.appendSlice(try resolveValue(allocator, program, line, arg));
         }
         return strBuf.items;
@@ -306,6 +306,12 @@ test "String interpolation" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "String interpolation with spaces" {
+    const src = "[ one _  _ ] '{ one}-{one }'";
+    const input = "aa bb cc";
+    const expectedOutput = [_][]const u8{"aa-aa"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
 //=========================================================================
 // Functions
 
@@ -338,16 +344,6 @@ test "Function in string" {
 }
 //==========================================================================
 // Fails
-
-test "Fail on leading space in interpolation" {
-    const src = "[ one ] '{ one}'";
-    try failCompile(src, DestructError.space_in_interpolation);
-}
-
-test "Fail on trailing space in interpolation" {
-    const src = "[ one ] '{one }'";
-    try failCompile(src, DestructError.space_in_interpolation);
-}
 
 test "Fail on missing input" {
     const src = "[ one two three] one two three";
