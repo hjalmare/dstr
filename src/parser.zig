@@ -76,10 +76,13 @@ const StringReader = struct {
     }
 
     pub fn skipWhitespaceUntil(self: *StringReader, c: u8) !void {
+        if (debugReader) {
+            std.debug.print("\t\tReader.SkipWhitespaceUntil '{c}'\n", .{c});
+        }
         self.skipWhitespace();
         var n = self.peek();
         if (n != c) {
-            std.debug.print("Unexpected character '{c}' expected '{c}'", .{ n, c });
+            std.debug.print("Unexpected character '{c}' expected '{c}'\n", .{ n, c });
             return DestructError.unexpected_char;
         }
     }
@@ -97,12 +100,12 @@ const StringReader = struct {
     //read char
     pub fn selection(self: StringReader) []const u8 {
         var off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset - 1;
-        if (debugReader) {
-            var ret = self.src[off];
-            std.debug.print("\t\tReader.selection offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
-        }
+        var ret = self.src[self.selectStart..off];
 
-        return self.src[self.selectStart..off];
+        if (debugReader) {
+            std.debug.print("\t\tReader.selection offset: {d} selectStart:{d} str:'{s}'\n", .{ self.offset, self.selectStart, ret });
+        }
+        return ret;
     }
 
     pub fn selectionInc(self: StringReader) []const u8 {
@@ -239,6 +242,11 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
     it.skipWhitespace();
     while (it.peek() != ')') {
         try args.append(try readAstNode(allocator, it));
+
+        //Dirty hack to handle when the last arg was a str
+        if (it.peek() == '\'' or it.peek() == '\"') {
+            _ = it.next();
+        }
         it.skipWhitespace();
     }
 
@@ -276,7 +284,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
     //End of input reached
     var refName = it.selectionInc();
     if (debug) {
-        std.debug.print("\tProducing ref '{s}'\n", .{refName});
+        std.debug.print("\tProducing ref at eof '{s}'\n", .{refName});
     }
     return AstNode{ .ref = refName };
 }
@@ -323,8 +331,13 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             _ = it.next(); //Skip the leading { when going back to }
             try fragments.append(try readAstNode(allocator, it));
             try it.skipWhitespaceUntil('}');
-            _ = it.next();
-            it.select();
+            var n = it.next();
+            if (n == null or n == qtType) {
+                //if we reach the end of string just do an early exit
+                return AstNode{ .fun = AstFun{ .name = "str", .args = fragments.items } };
+            } else {
+                it.select();
+            }
         } else if (c == '\\') {
             //deal with escape here
             try fragments.append(AstNode{ .chars = it.selection() });

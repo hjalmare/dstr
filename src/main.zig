@@ -306,6 +306,20 @@ test "String interpolation" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "String interpolation last" {
+    const src = "[ one ] '{one}' one";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{ "aa", "aa" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "String nested interpolation" {
+    const src = "[ one ] upper('{one}')";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{"AA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "String interpolation with spaces" {
     const src = "[ one _  _ ] '{ one}-{one }'";
     const input = "aa bb cc";
@@ -340,6 +354,20 @@ test "Function in string" {
     const src = "[ one two ] 'a{one.upper()}a' two";
     const input = "aa bb";
     const expectedOutput = [_][]const u8{ "aAAa", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "Function string as arg" {
+    const src = "[ _ two ] upper('a') two";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "A", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "Function string as arg spaces" {
+    const src = "[ _ two ] upper( 'a' ) two";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "A", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 //==========================================================================
