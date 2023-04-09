@@ -320,6 +320,20 @@ test "String nested interpolation" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "String nested interpolation2" {
+    const src = "[ one ] upper('{upper(one)}')";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{"AA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "String nested interpolation3" {
+    const src = "[ one ] upper('{ upper( one ) }')";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{"AA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "String interpolation with spaces" {
     const src = "[ one _  _ ] '{ one}-{one }'";
     const input = "aa bb cc";

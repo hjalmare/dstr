@@ -330,6 +330,11 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             //go back to readAstNode? can there be a string here
             _ = it.next(); //Skip the leading { when going back to }
             try fragments.append(try readAstNode(allocator, it));
+            it.skipWhitespace();
+            if (it.peek() == ')') {
+                _ = it.next(); //skip ending paren if method call
+            }
+
             try it.skipWhitespaceUntil('}');
             var n = it.next();
             if (n == null or n == qtType) {
