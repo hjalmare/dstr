@@ -105,7 +105,7 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
 fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
     if (fun.args.len != 1) {
         std.debug.print(
-            "Failed to execute 'upper', expecte 0 arguments but got {d}\n",
+            "Failed to execute 'upper', expects 0 arguments but got {d}\n",
             .{fun.args.len - 1},
         );
         return DestructError.exec_arg_error;
@@ -116,14 +116,13 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
     return refBuf;
 }
 
-fn builtinFirst(_: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
-    var arg1 = fun.args[0].ref;
+fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+    var arg1 = fun.args[0];
     var arg2 = fun.args[1].ref;
     var asInt = try std.fmt.parseInt(usize, arg2, 10);
 
-    var refStr = try resolveRef(program.symbols, line, arg1);
+    var refStr = try resolveValue(allocator, program, line, arg1);
     var result = refStr[0..asInt];
-    std.debug.print("first: '{s}' \n", .{result});
     return result;
 }
 
