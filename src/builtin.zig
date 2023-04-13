@@ -27,6 +27,7 @@ pub const FunType = enum {};
 pub const AstFun = struct {
     name: []const u8,
     args: []const AstNode,
+    impl: BuiltinFn,
 };
 
 pub const Program = struct {
@@ -54,7 +55,7 @@ pub fn resolveValue(allocator: Allocator, program: Program, line: ArrayList([]co
             return refStr;
         },
         .fun => {
-            return execBuiltin(allocator, program, line, node.fun);
+            return node.fun.impl(allocator, program, line, node.fun);
         },
     }
 }
@@ -89,15 +90,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     return DestructError.unknown_ref;
 }
 
-fn execBuiltin(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
-    var funName = fun.name;
-
-    var res = try resolveBuiltin(funName);
-
-    return res(allocator, program, line, fun);
-}
-
-fn resolveBuiltin(name: []const u8) !BuiltinFn {
+pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     if (std.mem.eql(u8, "upper", name)) {
         return builtinUpper;
     } else if (std.mem.eql(u8, "first", name)) {

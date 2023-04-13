@@ -11,6 +11,7 @@ const AstNodeType = builtin.AstNodeType;
 const AstNode = builtin.AstNode;
 const AstFun = builtin.AstFun;
 const Program = builtin.Program;
+const resolveBuiltin = builtin.resolveBuiltin;
 
 //Set to true for debug output
 const debug = false;
@@ -211,7 +212,7 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             if (debug) {
                 std.debug.print("\tProducing fun '{s}'\n", .{funName});
             }
-            var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+            var ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
                     return ret;
@@ -270,7 +271,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
             var funName = it.selection();
             var argList = ArrayList(AstNode).init(allocator);
             try readArgList(allocator, it, &argList);
-            return AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+            return AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
         } else if (isWhitespace(c) or c == '}' or c == ')') {
             //LoneRef
             var refName = it.selection();
@@ -339,7 +340,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             var n = it.next();
             if (n == null or n == qtType) {
                 //if we reach the end of string just do an early exit
-                return AstNode{ .fun = AstFun{ .name = "str", .args = fragments.items } };
+                return AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
             } else {
                 it.select();
             }
@@ -356,7 +357,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
         std.debug.print("\tFinal String fragment '{s}'\n", .{it.selection()});
     }
     try fragments.append(AstNode{ .chars = it.selection() });
-    return AstNode{ .fun = AstFun{ .name = "str", .args = fragments.items } };
+    return AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
 }
 
 pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
