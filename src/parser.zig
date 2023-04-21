@@ -4,6 +4,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const ascii = std.ascii;
 const isWhitespace = std.ascii.isWhitespace;
+const isDigit = std.ascii.isDigit;
 
 const builtin = @import("./builtin.zig");
 const DestructError = builtin.DestructError;
@@ -38,7 +39,10 @@ const StringReader = struct {
             var ret = self.src[self.offset];
             self.offset = self.offset + 1;
             if (debugReader) {
-                std.debug.print("\t\tReader.next offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+                std.debug.print(
+                    "\t\tReader.next offset: {d} selectStart:{d} char:'{c}'\n",
+                    .{ self.offset, self.selectStart, ret },
+                );
             }
             return ret;
         } else null;
@@ -47,7 +51,10 @@ const StringReader = struct {
     pub fn peek(self: StringReader) u8 {
         if (debugReader) {
             var ret = self.src[self.offset - 1];
-            std.debug.print("\t\tReader.peek offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+            std.debug.print(
+                "\t\tReader.peek offset: {d} selectStart:{d} char:'{c}'\n",
+                .{ self.offset, self.selectStart, ret },
+            );
         }
         return self.src[self.offset - 1];
     }
@@ -56,7 +63,10 @@ const StringReader = struct {
         self.selectStart = self.offset - 1;
         if (debugReader) {
             var ret = self.src[self.offset - 1];
-            std.debug.print("\t\tReader.select offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+            std.debug.print(
+                "\t\tReader.select offset: {d} selectStart:{d} char:'{c}'\n",
+                .{ self.offset, self.selectStart, ret },
+            );
         }
     }
 
@@ -64,7 +74,10 @@ const StringReader = struct {
         self.selectStart = self.offset;
         if (debugReader) {
             var ret = self.src[self.offset - 1];
-            std.debug.print("\t\tReader.selectNext offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
+            std.debug.print(
+                "\t\tReader.selectNext offset: {d} selectStart:{d} char:'{c}'\n",
+                .{ self.offset, self.selectStart, ret },
+            );
         }
     }
 
@@ -242,11 +255,13 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
     //TODO: handle end of string (syntax error missing ')' )
     it.skipWhitespace();
     while (it.peek() != ')') {
-        try args.append(try readAstNode(allocator, it));
+        var arg = try readAstNode(allocator, it);
 
-        //Dirty hack to handle when the last arg was a str
-        if (it.peek() == '\'' or it.peek() == '\"') {
-            _ = it.next();
+        try args.append(arg);
+        //Dirty hack to handle when the last arg was a str or fun
+        switch (arg) {
+            AstNodeType.fun, AstNodeType.chars => _ = it.next(),
+            else => {},
         }
         it.skipWhitespace();
     }
@@ -360,6 +375,19 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
     return AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
 }
 
+pub fn readInteger(it: *StringReader) !AstNode {
+    it.select();
+
+    while (it.next()) |c| {
+        if (!isDigit(c)) {
+            break;
+        }
+    }
+
+    var intVal = try std.fmt.parseInt(i64, it.selection(), 10);
+    return AstNode{ .int = intVal };
+}
+
 pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("Enter readAstNode\n", .{});
@@ -371,6 +399,8 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
     var c = it.peek();
     if ((c == '\'') or (c == '"')) {
         return readStringExpression(allocator, it);
+    } else if (isDigit(c)) {
+        return readInteger(it);
     } else if (!isWhitespace(c) and (c != ')')) {
         return readRefOrFun(allocator, it);
     }

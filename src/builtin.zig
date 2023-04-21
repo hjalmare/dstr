@@ -15,12 +15,18 @@ pub const DestructError = error{
     InvalidCharacter,
     Overflow,
 };
+pub const PrimitiveValueType = enum { chars, int };
+pub const PrimitiveValue = union(PrimitiveValueType) {
+    chars: []const u8,
+    int: i64,
+};
 
-pub const AstNodeType = enum { ref, fun, chars };
+pub const AstNodeType = enum { ref, fun, chars, int };
 pub const AstNode = union(AstNodeType) {
     ref: []const u8,
     fun: AstFun,
     chars: []const u8,
+    int: i64,
 };
 
 pub const FunType = enum {};
@@ -32,7 +38,7 @@ pub const AstFun = struct {
 
 pub const Program = struct {
     symbols: ArrayList([]const u8),
-    ex: ArrayList(AstNode),
+    ex: ArrayList(AstNode), //Todo: rename to ast?
 };
 
 pub const Builtin = struct {
@@ -45,7 +51,7 @@ pub const Builtin = struct {
 const debug = false;
 const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError![]const u8;
 
-pub fn resolveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
+pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
     switch (node) {
         .chars => {
             return node.chars;
@@ -56,6 +62,45 @@ pub fn resolveValue(allocator: Allocator, program: Program, line: ArrayList([]co
         },
         .fun => {
             return node.fun.impl(allocator, program, line, node.fun);
+        },
+        .int => {
+            return DestructError.exec_arg_error; //TODO: convert int to string
+        },
+    }
+}
+
+pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !PrimitiveValue {
+    switch (node) {
+        .chars => {
+            return PrimitiveValue{ .chars = node.chars };
+        },
+        .ref => {
+            return try resolveRef(program.symbols, line, node.ref);
+        },
+        .fun => {
+            return node.fun.impl(allocator, program, line, node.fun);
+        },
+        .int => {
+            return PrimitiveValue{ .int = node.int };
+        },
+    }
+}
+
+pub fn resolveIntValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !i64 {
+    switch (node) {
+        .chars => {
+            return try std.fmt.parseInt(i64, node.chars, 10);
+        },
+        .ref => {
+            var refVal = try resolveRef(program.symbols, line, node.ref);
+            return try std.fmt.parseInt(i64, refVal, 10);
+        },
+        .fun => {
+            var funVal = try node.fun.impl(allocator, program, line, node.fun);
+            return try std.fmt.parseInt(i64, funVal, 10);
+        },
+        .int => {
+            return node.int;
         },
     }
 }
@@ -90,6 +135,8 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
     return DestructError.unknown_ref;
 }
 
+// Actual builtins
+// ===================================================================================
 pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     if (std.mem.eql(u8, "upper", name)) {
         return builtinUpper;
@@ -110,7 +157,8 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
         );
         return DestructError.exec_arg_error;
     }
-    var arg1 = try resolveValue(allocator, program, line, fun.args[0]);
+    var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
+
     var refBuf = try allocator.alloc(u8, arg1.len);
     _ = std.ascii.upperString(refBuf, arg1);
     return refBuf;
@@ -118,10 +166,9 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
 
 fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
     var arg1 = fun.args[0];
-    var arg2 = fun.args[1].ref;
-    var asInt = try std.fmt.parseInt(usize, arg2, 10);
+    var asInt = @intCast(usize, try resolveIntValue(allocator, program, line, fun.args[1]));
 
-    var refStr = try resolveValue(allocator, program, line, arg1);
+    var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = refStr[0..asInt];
     return result;
 }
@@ -129,7 +176,7 @@ fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const 
 fn builtinStr(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
     var strBuf = std.ArrayList(u8).init(allocator);
     for (fun.args) |arg| {
-        try strBuf.appendSlice(try resolveValue(allocator, program, line, arg));
+        try strBuf.appendSlice(try resolveCharsValue(allocator, program, line, arg));
     }
     return strBuf.items;
 }

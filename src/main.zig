@@ -8,7 +8,7 @@ const DestructError = builtin.DestructError;
 const Program = builtin.Program;
 const AstFun = builtin.AstFun;
 const AstNode = builtin.AstNode;
-const resolveValue = builtin.resolveValue;
+const resolveCharsValue = builtin.resolveCharsValue;
 
 const parser = @import("./parser.zig");
 const compile = parser.compile;
@@ -56,7 +56,7 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
     var ret = ArrayList([]const u8).init(allocator);
 
     for (program.ex.items) |ex| {
-        try ret.append(try resolveValue(allocator, program, line, ex));
+        try ret.append(try resolveCharsValue(allocator, program, line, ex));
     }
 
     return ret;
@@ -278,6 +278,13 @@ test "Function first" {
 
 test "Function chaining" {
     const src = "[ one two ] one.first(2).upper() two";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{ "AA", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "Function nested" {
+    const src = "[ one two ] first(upper(one) 2) two";
     const input = "aaaa bb";
     const expectedOutput = [_][]const u8{ "AA", "bb" };
     try quickTest(src, input, expectedOutput[0..]);
