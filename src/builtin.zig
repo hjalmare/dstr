@@ -19,6 +19,20 @@ pub const PrimitiveValueType = enum { chars, int };
 pub const PrimitiveValue = union(PrimitiveValueType) {
     chars: []const u8,
     int: i64,
+
+    pub fn toInt(self: PrimitiveValue) !i64 {
+        return switch (self) {
+            .chars => try std.fmt.parseInt(i64, self.chars, 10),
+            .int => self.int,
+        };
+    }
+
+    pub fn toChars(self: PrimitiveValue, allocator: Allocator) ![]const u8 {
+        return switch (self) {
+            .chars => self.chars,
+            .int => try std.fmt.allocPrint(allocator, "{d}", .{self.int}),
+        };
+    }
 };
 
 pub const AstNodeType = enum { ref, fun, chars, int };
@@ -49,60 +63,20 @@ pub const Builtin = struct {
 };
 
 const debug = false;
-const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError![]const u8;
+const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError!PrimitiveValue;
 
 pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
-    switch (node) {
-        .chars => {
-            return node.chars;
-        },
-        .ref => {
-            var refStr = try resolveRef(program.symbols, line, node.ref);
-            return refStr;
-        },
-        .fun => {
-            return node.fun.impl(allocator, program, line, node.fun);
-        },
-        .int => {
-            return DestructError.exec_arg_error; //TODO: convert int to string
-        },
-    }
+    var ret = try resolvePrimitiveValue(allocator, program, line, node);
+    return ret.toChars(allocator);
 }
 
 pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !PrimitiveValue {
-    switch (node) {
-        .chars => {
-            return PrimitiveValue{ .chars = node.chars };
-        },
-        .ref => {
-            return try resolveRef(program.symbols, line, node.ref);
-        },
-        .fun => {
-            return node.fun.impl(allocator, program, line, node.fun);
-        },
-        .int => {
-            return PrimitiveValue{ .int = node.int };
-        },
-    }
-}
-
-pub fn resolveIntValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !i64 {
-    switch (node) {
-        .chars => {
-            return try std.fmt.parseInt(i64, node.chars, 10);
-        },
-        .ref => {
-            var refVal = try resolveRef(program.symbols, line, node.ref);
-            return try std.fmt.parseInt(i64, refVal, 10);
-        },
-        .fun => {
-            var funVal = try node.fun.impl(allocator, program, line, node.fun);
-            return try std.fmt.parseInt(i64, funVal, 10);
-        },
-        .int => {
-            return node.int;
-        },
-    }
+    return switch (node) {
+        .chars => PrimitiveValue{ .chars = node.chars },
+        .ref => PrimitiveValue{ .chars = try resolveRef(program.symbols, line, node.ref) },
+        .fun => node.fun.impl(allocator, program, line, node.fun),
+        .int => PrimitiveValue{ .int = node.int },
+    };
 }
 
 fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: []const u8) ![]const u8 {
@@ -149,7 +123,7 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     return DestructError.unknown_function;
 }
 
-fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
     if (fun.args.len != 1) {
         std.debug.print(
             "Failed to execute 'upper', expects 0 arguments but got {d}\n",
@@ -161,22 +135,22 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
 
     var refBuf = try allocator.alloc(u8, arg1.len);
     _ = std.ascii.upperString(refBuf, arg1);
-    return refBuf;
+    return PrimitiveValue{ .chars = refBuf };
 }
 
-fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
     var arg1 = fun.args[0];
-    var asInt = @intCast(usize, try resolveIntValue(allocator, program, line, fun.args[1]));
+    var asInt = @intCast(usize, try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt());
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = refStr[0..asInt];
-    return result;
+    return PrimitiveValue{ .chars = result };
 }
 
-fn builtinStr(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) ![]const u8 {
+fn builtinStr(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
     var strBuf = std.ArrayList(u8).init(allocator);
     for (fun.args) |arg| {
         try strBuf.appendSlice(try resolveCharsValue(allocator, program, line, arg));
     }
-    return strBuf.items;
+    return PrimitiveValue{ .chars = strBuf.items };
 }
