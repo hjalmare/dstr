@@ -6,6 +6,7 @@ pub const DestructError = error{
     anon_ref,
     unknown_ref,
     unknown_function,
+    coercion_failed,
     missing_input,
     space_in_interpolation,
     ref_non_alpha,
@@ -15,15 +16,17 @@ pub const DestructError = error{
     InvalidCharacter,
     Overflow,
 };
-pub const PrimitiveValueType = enum { chars, int };
+pub const PrimitiveValueType = enum { chars, int, bool };
 pub const PrimitiveValue = union(PrimitiveValueType) {
     chars: []const u8,
     int: i64,
+    bool: bool,
 
     pub fn toInt(self: PrimitiveValue) !i64 {
         return switch (self) {
             .chars => try std.fmt.parseInt(i64, self.chars, 10),
             .int => self.int,
+            .bool => DestructError.coercion_failed,
         };
     }
 
@@ -31,6 +34,7 @@ pub const PrimitiveValue = union(PrimitiveValueType) {
         return switch (self) {
             .chars => self.chars,
             .int => try std.fmt.allocPrint(allocator, "{d}", .{self.int}),
+            .bool => if (self.bool) "true" else "false",
         };
     }
 };
@@ -118,9 +122,11 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
         return builtinFirst;
     } else if (std.mem.eql(u8, "str", name)) {
         return builtinStr;
+    } else if (std.mem.eql(u8, "eq", name)) {
+        return builtinEq;
+    } else {
+        return DestructError.unknown_function;
     }
-
-    return DestructError.unknown_function;
 }
 
 fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
@@ -153,4 +159,25 @@ fn builtinStr(allocator: Allocator, program: Program, line: ArrayList([]const u8
         try strBuf.appendSlice(try resolveCharsValue(allocator, program, line, arg));
     }
     return PrimitiveValue{ .chars = strBuf.items };
+}
+
+//Comparisons
+fn primBool(b: bool) PrimitiveValue {
+    return PrimitiveValue{ .bool = b };
+}
+
+fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolvePrimitiveValue(allocator, program, line, fun.args[0]);
+    var arg2 = try resolvePrimitiveValue(allocator, program, line, fun.args[1]);
+
+    if (@as(PrimitiveValueType, arg1) == @as(PrimitiveValueType, arg2)) {
+        return switch (arg1) {
+            .chars => primBool(std.mem.eql(u8, arg1.chars, arg2.chars)),
+            .int => primBool(arg1.int == arg2.int),
+            .bool => primBool(arg1.bool == arg2.bool),
+        };
+    } else {
+        //convert both to str and compare
+        return primBool(std.mem.eql(u8, try arg1.toChars(allocator), try arg2.toChars(allocator)));
+    }
 }
