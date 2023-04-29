@@ -134,6 +134,7 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     } else if (std.mem.eql(u8, "if", name)) {
         return builtinIf;
     } else {
+        std.debug.print("Unknown function: '{s}'\n", .{name});
         return DestructError.unknown_function;
     }
 }
