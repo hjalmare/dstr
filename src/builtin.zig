@@ -37,6 +37,13 @@ pub const PrimitiveValue = union(PrimitiveValueType) {
             .bool => if (self.bool) "true" else "false",
         };
     }
+    pub fn toBool(self: PrimitiveValue) bool {
+        return switch (self) {
+            .chars => self.chars.len > 0,
+            .int => self.int > 0,
+            .bool => self.bool,
+        };
+    }
 };
 
 pub const AstNodeType = enum { ref, fun, chars, int };
@@ -124,6 +131,8 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
         return builtinStr;
     } else if (std.mem.eql(u8, "eq", name)) {
         return builtinEq;
+    } else if (std.mem.eql(u8, "if", name)) {
+        return builtinIf;
     } else {
         return DestructError.unknown_function;
     }
@@ -179,5 +188,15 @@ fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8)
     } else {
         //convert both to str and compare
         return primBool(std.mem.eql(u8, try arg1.toChars(allocator), try arg2.toChars(allocator)));
+    }
+}
+
+fn builtinIf(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolvePrimitiveValue(allocator, program, line, fun.args[0]);
+
+    if (arg1.toBool()) {
+        return try resolvePrimitiveValue(allocator, program, line, fun.args[1]);
+    } else {
+        return resolvePrimitiveValue(allocator, program, line, fun.args[2]);
     }
 }
