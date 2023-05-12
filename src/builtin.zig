@@ -11,6 +11,7 @@ pub const DestructError = error{
     space_in_interpolation,
     ref_non_alpha,
     exec_arg_error,
+    invocation_error,
     unexpected_char,
     OutOfMemory,
     InvalidCharacter,
@@ -59,6 +60,13 @@ pub const AstFun = struct {
     name: []const u8,
     args: []const AstNode,
     impl: BuiltinFn,
+
+    pub fn assertArgsSize(self: AstFun, expected: usize) !void {
+        if (self.args.len != expected) {
+            std.debug.print("Failed to execute '{s}' expected {i} arguments but got {i}", .{ self.name, expected, self.args.len });
+            return DestructError.invocation_error;
+        }
+    }
 };
 
 pub const Program = struct {
@@ -66,15 +74,21 @@ pub const Program = struct {
     ex: ArrayList(AstNode), //Todo: rename to ast?
 };
 
-pub const Builtin = struct {
-    name: []const u8,
-    produces: AstNodeType,
-    args: []const AstNodeType,
-    impl: fn (AstFun) []const u8,
-};
-
 const debug = false;
 const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError!PrimitiveValue;
+const BuiltinValidator = *const fn (AstFun, bool) DestructError!void;
+pub const Builtin = struct {
+    name: []const u8,
+    impl: BuiltinFn,
+};
+
+const builtins = [_]Builtin{
+    Builtin{ .name = "upper", .impl = builtinUpper },
+    Builtin{ .name = "first", .impl = builtinFirst },
+    Builtin{ .name = "str", .impl = builtinStr },
+    Builtin{ .name = "eq", .impl = builtinEq },
+    Builtin{ .name = "if", .impl = builtinIf },
+};
 
 pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
     var ret = try resolvePrimitiveValue(allocator, program, line, node);
@@ -123,20 +137,13 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
 // Actual builtins
 // ===================================================================================
 pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
-    if (std.mem.eql(u8, "upper", name)) {
-        return builtinUpper;
-    } else if (std.mem.eql(u8, "first", name)) {
-        return builtinFirst;
-    } else if (std.mem.eql(u8, "str", name)) {
-        return builtinStr;
-    } else if (std.mem.eql(u8, "eq", name)) {
-        return builtinEq;
-    } else if (std.mem.eql(u8, "if", name)) {
-        return builtinIf;
-    } else {
-        std.debug.print("Unknown function: '{s}'\n", .{name});
-        return DestructError.unknown_function;
+    for (builtins) |it| {
+        if (std.mem.eql(u8, it.name, name)) {
+            return it.impl;
+        }
     }
+    std.debug.print("Unknown function: '{s}'\n", .{name});
+    return DestructError.unknown_function;
 }
 
 fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
