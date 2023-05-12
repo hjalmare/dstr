@@ -18,7 +18,6 @@ const resolveBuiltin = builtin.resolveBuiltin;
 const debug = false;
 const debugReader = false;
 
-const Mode = enum { START, ARG_LIST, ARG_NAME, EX_LIST, EX_NAME, EX_SQT_STR, EX_SQT_REF, EX_SQT_ESC };
 const ExName = struct { name: []const u8, type: AstNodeType };
 
 const StringReader = struct {
