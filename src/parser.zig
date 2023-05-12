@@ -18,8 +18,6 @@ const resolveBuiltin = builtin.resolveBuiltin;
 const debug = false;
 const debugReader = false;
 
-const ExName = struct { name: []const u8, type: AstNodeType };
-
 const StringReader = struct {
     src: []const u8,
     offset: usize = 0,
