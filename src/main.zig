@@ -64,13 +64,13 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
 
 pub fn main() !void {
     //Allocator used for the duration of the main program
-    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var gpa = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
     //Allocator used for each line of input
     //TODO: use some resettable allocator here
-    var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var lineArena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     var lineAllocator = lineArena.allocator();
     defer lineArena.deinit();
 
@@ -113,7 +113,8 @@ pub fn main() !void {
     };
 
     //Read system in
-    const stdin = std.io.getStdIn().reader();
+    var stdinBuff = std.io.bufferedReader(std.io.getStdIn().reader());
+    var stdin = stdinBuff.reader();
     //TODO; This method of reading stdin seems very slow
     var input: ?[]u8 = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
 

@@ -2,6 +2,8 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
+const debug = false;
+
 pub const DestructError = error{
     anon_ref,
     unknown_ref,
@@ -74,7 +76,6 @@ pub const Program = struct {
     ex: ArrayList(AstNode), //Todo: rename to ast?
 };
 
-const debug = false;
 const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError!PrimitiveValue;
 const BuiltinValidator = *const fn (AstFun, bool) DestructError!void;
 pub const Builtin = struct {
@@ -89,6 +90,9 @@ const builtins = [_]Builtin{
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "if", .impl = builtinIf },
 };
+
+// Executor enginge, recursively resolve values
+// ====================================================================================
 
 pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
     var ret = try resolvePrimitiveValue(allocator, program, line, node);

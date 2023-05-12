@@ -6,11 +6,12 @@ pub fn build(b: *Builder) void {
 
     const main_tests = b.addTest("src/main.zig");
     main_tests.setBuildMode(mode);
-
+    main_tests.linkLibC();
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 
     const exe = b.addExecutable("dstr", "src/main.zig");
+    exe.linkLibC();
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
