@@ -29,7 +29,7 @@ fn splitInput(allocator: Allocator, input: []const u8) !ArrayList([]const u8) {
     var startPos: usize = 0;
     var mode = SssMode.START;
 
-    for (input) |c, i| {
+    for (input, 0..) |c, i| {
         switch (mode) {
             SssMode.START => {
                 if (!isWhitespace(c)) {
@@ -64,13 +64,13 @@ fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8))
 
 pub fn main() !void {
     //Allocator used for the duration of the main program
-    var gpa = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
     //Allocator used for each line of input
     //TODO: use some resettable allocator here
-    var lineArena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+    var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     var lineAllocator = lineArena.allocator();
     defer lineArena.deinit();
 
@@ -128,7 +128,7 @@ pub fn main() !void {
 
         if (args.len == 2) {
             //Echo mode
-            for (ret.items) |o, i| {
+            for (ret.items, 0..) |o, i| {
                 if (i != 0) try stdout.writer().writeAll(" ");
 
                 try stdout.writer().writeAll(o);
@@ -284,6 +284,13 @@ test "Function chaining" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "Function chaining 3x" {
+    const src = "[ one two ] first(one 2).upper().upper()";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{"AA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Function nested" {
     const src = "[ one two ] first(upper(one) 2) two";
     const input = "aaaa bb";
@@ -420,7 +427,7 @@ fn cmpStrSlice(a: [][]const u8, b: []const []const u8) bool {
         return false;
     }
 
-    for (a) |_, i| {
+    for (a, 0..) |_, i| {
         if (!std.mem.eql(u8, a[i], b[i])) {
             return false;
         }

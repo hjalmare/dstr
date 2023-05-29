@@ -88,6 +88,7 @@ const builtins = [_]Builtin{
     Builtin{ .name = "first", .impl = builtinFirst },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
+    Builtin{ .name = "startsWith", .impl = builtinStartsWith },
     Builtin{ .name = "if", .impl = builtinIf },
 };
 
@@ -118,7 +119,7 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
         return DestructError.anon_ref;
     }
 
-    for (symbols.items) |sym, si| {
+    for (symbols.items, 0..) |sym, si| {
         const isSame = std.mem.eql(u8, sym, ref);
         const dotDotDot = std.mem.eql(u8, sym, "...");
         if (debug) std.debug.print("\tResolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
@@ -188,6 +189,10 @@ fn primBool(b: bool) PrimitiveValue {
 }
 
 fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    if (debug) {
+        std.debug.print("builtinEq \n", .{});
+    }
+
     var arg1 = try resolvePrimitiveValue(allocator, program, line, fun.args[0]);
     var arg2 = try resolvePrimitiveValue(allocator, program, line, fun.args[1]);
 
@@ -203,7 +208,16 @@ fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8)
     }
 }
 
+fn builtinStartsWith(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
+    var arg2 = try resolveCharsValue(allocator, program, line, fun.args[1]);
+    return PrimitiveValue{ .bool = std.mem.startsWith(u8, arg1, arg2) };
+}
+
 fn builtinIf(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    if (debug) {
+        std.debug.print("builtinIf \n", .{});
+    }
     var arg1 = try resolvePrimitiveValue(allocator, program, line, fun.args[0]);
 
     if (arg1.toBool()) {

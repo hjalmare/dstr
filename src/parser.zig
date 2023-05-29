@@ -99,6 +99,9 @@ const StringReader = struct {
     }
 
     pub fn nextNonWhitespace(self: *StringReader) ?u8 {
+        if (debugReader) {
+            std.debug.print("\t\tReader.nextNonWhitespace \n", .{});
+        }
         while (self.next()) |c| {
             if (!isWhitespace(c)) {
                 return c;
@@ -233,6 +236,8 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
                 } else {
                     return DestructError.unexpected_char;
                 }
+            } else {
+                return ret;
             }
         } else if (isWhitespace(c)) {
             //LoneRef
@@ -283,7 +288,19 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
             var funName = it.selection();
             var argList = ArrayList(AstNode).init(allocator);
             try readArgList(allocator, it, &argList);
-            return AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
+            var ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
+
+            if (it.next()) |lahead| {
+                if (lahead == '.') {
+                    var subArgList = ArrayList(AstNode).init(allocator);
+                    try subArgList.append(ret);
+                    return wrapInFun(allocator, &subArgList, it);
+                } else {
+                    return ret;
+                }
+            } else {
+                return ret;
+            }
         } else if (isWhitespace(c) or c == '}' or c == ')') {
             //LoneRef
             var refName = it.selection();
@@ -373,6 +390,9 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
 }
 
 pub fn readInteger(it: *StringReader) !AstNode {
+    if (debug) {
+        std.debug.print("Enter readInteger\n", .{});
+    }
     it.select();
 
     while (it.next()) |c| {
@@ -382,6 +402,9 @@ pub fn readInteger(it: *StringReader) !AstNode {
     }
 
     var intVal = try std.fmt.parseInt(i64, it.selection(), 10);
+    if (debug) {
+        std.debug.print("Producing integer: {}\n", .{intVal});
+    }
     return AstNode{ .int = intVal };
 }
 
