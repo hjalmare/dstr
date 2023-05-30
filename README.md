@@ -6,7 +6,7 @@ Because cut is hard.
 [Releases](https://github.com/hjalmare/dstr/releases)
 
 ## Usage
-dstr reads input from sytem in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
+dstr reads input from system in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
 Similar to cut and awk.
 
 ```
@@ -43,6 +43,21 @@ dstr supports string interpolation with `{symbol}`
 
 `[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`  
 
+
+### Built in functions
+Functions can either be invoked using c-like syntax where arguments are separated by a space `first(val 3)`.
+Or dot syntax can be used like this: `val.first(3)` here val is inserted as the first argument to `first`.
+
+There is currently a small selection of functions implemented.
+
+| Function                | Dot syntax              | Description                                                                        |
+|-------------------------|-------------------------|------------------------------------------------------------------------------------|
+| `first(val num)`        | `val.first(num)`        | Takes the first `num` characters from `val`                                        |
+| `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                             |
+| `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                      |
+| `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                             |
+| `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if  `val1`  ends with the value of  `val2`                            |
+| `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')` |
 
 ## Examples
 
@@ -91,6 +106,5 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * csv parsing
 * use files as input
 * support more escape characters like \n and \t
-* fancy builtins
 * compiletime typecheck
 * faster stdio
