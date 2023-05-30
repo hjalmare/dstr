@@ -89,6 +89,7 @@ const builtins = [_]Builtin{
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
+    Builtin{ .name = "endsWith", .impl = builtinEndsWith },
     Builtin{ .name = "if", .impl = builtinIf },
 };
 
@@ -212,6 +213,12 @@ fn builtinStartsWith(allocator: Allocator, program: Program, line: ArrayList([]c
     var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, program, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.startsWith(u8, arg1, arg2) };
+}
+
+fn builtinEndsWith(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
+    var arg2 = try resolveCharsValue(allocator, program, line, fun.args[1]);
+    return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
 }
 
 fn builtinIf(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
