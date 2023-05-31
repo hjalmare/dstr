@@ -62,6 +62,19 @@ There is currently a small selection of functions implemented.
 ## Examples
 
 
+A little bit of everything
+```
+$ ls -ld * | dstr "[... f] if(f.endsWith('.sh') 'Shell: {f}' 'File: {f}').upper()"
+> SHELL: BUILD_PAK.SH
+> FILE: BUILD.ZIG
+> FILE: LICENSE
+> FILE: README.MD
+> SHELL: REL_TAG.SH
+> FILE: SRC
+> FILE: ZIG-CACHE
+> FILE: ZIG-OUT
+```
+
 Print the second last item
 ```
 $echo AA BB CC DD | dstr "[... c _] c"
