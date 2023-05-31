@@ -116,6 +116,8 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 
 
 ## TODO
+* Nice errors and error checking
+* Faster ref resolution
 * csv parsing
 * use files as input
 * support more escape characters like \n and \t
