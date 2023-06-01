@@ -291,6 +291,13 @@ test "Function chaining 3x" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "Function chaining 4x" {
+    const src = "[ one two ] one.first(2).rpad(4 two.first(2))";
+    const input = "aaaa bb";
+    const expectedOutput = [_][]const u8{"aabb"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Function nested" {
     const src = "[ one two ] first(upper(one) 2) two";
     const input = "aaaa bb";
@@ -424,11 +431,13 @@ fn assertStrSlice(a: [][]const u8, b: []const []const u8) error{NotSame}!void {
 //TODO: use some test method here
 fn cmpStrSlice(a: [][]const u8, b: []const []const u8) bool {
     if (a.len != b.len) {
+        std.debug.print("These ar not the same len  {any} {any}\n", .{ a.len, b.len });
         return false;
     }
 
     for (a, 0..) |_, i| {
         if (!std.mem.eql(u8, a[i], b[i])) {
+            std.debug.print("These are not eq: '{s}' '{s}' \n", .{ a[i], b[i] });
             return false;
         }
     }

@@ -173,7 +173,7 @@ fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const 
     var asInt = @intCast(usize, try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt());
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
-    var result = refStr[0..asInt];
+    var result = refStr[0..(asInt)];
     return PrimitiveValue{ .chars = result };
 }
 

@@ -229,6 +229,9 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
                     return ret;
+                } else if (lahead == ')') {
+                    it.rewind();
+                    return ret;
                 } else if (lahead == '.') {
                     var innerArgs = ArrayList(AstNode).init(allocator);
                     try innerArgs.append(ret);
