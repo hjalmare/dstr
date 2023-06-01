@@ -183,12 +183,14 @@ fn builtinRPad(allocator: Allocator, program: Program, line: ArrayList([]const u
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = try allocator.alloc(u8, asInt);
+    var filler = if (fun.args.len == 3) try resolveCharsValue(allocator, program, line, fun.args[2]) else " ";
 
     for (0..asInt) |i| {
         if (i < refStr.len) {
             result[i] = refStr[i];
         } else {
-            result[i] = ' ';
+            var foff = (i - refStr.len) % filler.len;
+            result[i] = filler[foff];
         }
     }
     return PrimitiveValue{ .chars = result };
