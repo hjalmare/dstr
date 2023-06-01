@@ -86,6 +86,7 @@ pub const Builtin = struct {
 const builtins = [_]Builtin{
     Builtin{ .name = "upper", .impl = builtinUpper },
     Builtin{ .name = "first", .impl = builtinFirst },
+    Builtin{ .name = "rpad", .impl = builtinRPad },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
@@ -173,6 +174,23 @@ fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const 
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = refStr[0..asInt];
+    return PrimitiveValue{ .chars = result };
+}
+
+fn builtinRPad(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+    var arg1 = fun.args[0];
+    var asInt = @intCast(usize, try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt());
+
+    var refStr = try resolveCharsValue(allocator, program, line, arg1);
+    var result = try allocator.alloc(u8, asInt);
+
+    for (0..asInt) |i| {
+        if (i < refStr.len) {
+            result[i] = refStr[i];
+        } else {
+            result[i] = ' ';
+        }
+    }
     return PrimitiveValue{ .chars = result };
 }
 
