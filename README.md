@@ -54,6 +54,7 @@ There is currently a small selection of functions implemented.
 |-------------------------|-------------------------|------------------------------------------------------------------------------------|
 | `first(val num)`        | `val.first(num)`        | Takes the first `num` characters from `val`                                        |
 | `rpad(val num)`         | `val.rpad(num)`         | Pads the right side of `val` with spaces so that it is `num` characters long       |
+| `rpad(val num ptrn)`    | `val.rpad(num ptrn)`    | Pads the right side of `val` with `ptrn` so that it is `num` characters long       |
 | `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                             |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                      |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                             |
