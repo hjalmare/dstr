@@ -395,7 +395,17 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
         std.debug.print("\tFinal String fragment '{s}'\n", .{it.selection()});
     }
     try fragments.append(AstNode{ .chars = it.selection() });
-    return AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
+    var ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
+
+    if (it.next()) |lahead| {
+        if (lahead == '.') {
+            var argList = ArrayList(AstNode).init(allocator);
+            try argList.append(ret);
+            return wrapInFun(allocator, &argList, it);
+        }
+        it.rewind();
+    }
+    return ret;
 }
 
 pub fn readInteger(it: *StringReader) !AstNode {
