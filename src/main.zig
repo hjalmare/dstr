@@ -219,6 +219,13 @@ test "Escaping characters2" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "Escaping characters3" {
+    const src = "[_] str('\\t' 't')";
+    const input = "aa bb cc";
+    const expectedOutput = [_][]const u8{"\tt"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "String interpolation" {
     const src = "[ one _  _ ] '{one}-{one}'";
     const input = "aa bb cc";

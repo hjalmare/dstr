@@ -205,8 +205,9 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
     return Program{ .symbols = symbols, .ex = ex };
 }
 
-//New parser, each read step ends on its terminating character
-// so that the following step can peek that char
+//New expression parser
+//Holy off by one error batman, tokenizing would really help :D
+
 pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("Enter wrapInFun\n", .{});
@@ -380,7 +381,12 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             //deal with escape here
             try fragments.append(AstNode{ .chars = it.selection() });
             try fragments.append(try readEscapedStringCharacter(allocator, it));
-            _ = it.next();
+            if (it.next()) |lahead| {
+                if (lahead == qtType) {
+                    it.select();
+                    break;
+                }
+            }
             it.select();
         }
     }
