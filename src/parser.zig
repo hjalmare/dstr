@@ -202,7 +202,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         try ex.append(try readAstNode(allocator, &it));
     }
 
-    return Program{ .symbols = symbols, .ex = ex };
+    return Program{ .input = .{ .positional = symbols.items }, .ex = ex };
 }
 
 //New expression parser

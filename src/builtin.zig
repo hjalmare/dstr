@@ -72,8 +72,20 @@ pub const AstFun = struct {
 };
 
 pub const Program = struct {
-    symbols: ArrayList([]const u8),
+    input: InputParser,
     ex: ArrayList(AstNode), //Todo: rename to ast?
+};
+
+pub const InputParserType = enum { positional, segments };
+pub const InputParser = union(InputParserType) {
+    positional: [][]const u8,
+    segments: []const SegmentNode,
+};
+
+pub const SegmentType = enum { chars, ref };
+pub const SegmentNode = union(SegmentType) {
+    chars: []const u8,
+    ref: []const u8,
 };
 
 const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError!PrimitiveValue;
@@ -105,13 +117,13 @@ pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList
 pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !PrimitiveValue {
     return switch (node) {
         .chars => PrimitiveValue{ .chars = node.chars },
-        .ref => PrimitiveValue{ .chars = try resolveRef(program.symbols, line, node.ref) },
+        .ref => PrimitiveValue{ .chars = try resolveRef(program.input.positional, line, node.ref) },
         .fun => node.fun.impl(allocator, program, line, node.fun),
         .int => PrimitiveValue{ .int = node.int },
     };
 }
 
-fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: []const u8) ![]const u8 {
+fn resolveRef(symbols: [][]const u8, line: ArrayList([]const u8), ref: []const u8) ![]const u8 {
     var offset: i64 = 0;
 
     const isUnderScore = std.mem.eql(u8, ref, "_");
@@ -121,12 +133,12 @@ fn resolveRef(symbols: ArrayList([]const u8), line: ArrayList([]const u8), ref: 
         return DestructError.anon_ref;
     }
 
-    for (symbols.items, 0..) |sym, si| {
+    for (symbols, 0..) |sym, si| {
         const isSame = std.mem.eql(u8, sym, ref);
         const dotDotDot = std.mem.eql(u8, sym, "...");
         if (debug) std.debug.print("\tResolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
         if (dotDotDot) {
-            const symLeft = @intCast(i64, symbols.items.len) - @intCast(i64, si) - 1;
+            const symLeft = @intCast(i64, symbols.len) - @intCast(i64, si) - 1;
             offset = @intCast(i64, line.items.len) - symLeft - 1 - @intCast(i64, si);
         } else if (isSame) {
             const finalOffset = @intCast(i64, si) + offset;
