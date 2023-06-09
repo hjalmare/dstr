@@ -12,6 +12,7 @@ const AstNodeType = builtin.AstNodeType;
 const AstNode = builtin.AstNode;
 const AstFun = builtin.AstFun;
 const Program = builtin.Program;
+const InputParser = builtin.InputParser;
 const resolveBuiltin = builtin.resolveBuiltin;
 
 //Set to true for debug output
@@ -153,23 +154,13 @@ fn readSymbol(it: *StringReader) []const u8 {
     return it.selection();
 }
 
-pub fn compile(allocator: Allocator, source: []const u8) !Program {
-    var it = StringReader.init(source);
-
-    //clear leading text
-    while (it.next()) |c| {
-        if (c == '[') {
-            break;
-        }
-    }
-
-    //read symbol bindings
+pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParser {
     var symbols = ArrayList([]const u8).init(allocator);
     while (it.next()) |c| {
         if (c == ']') {
             break;
         } else if (!isWhitespace(c)) {
-            var sym = readSymbol(&it);
+            var sym = readSymbol(it);
             if (sym.len > 0) {
                 if (debug) {
                     std.debug.print("\tAdding SymbolBinding: '{s}'\n", .{sym});
@@ -193,6 +184,21 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         }
     }
 
+    return InputParser{ .positional = symbols.items };
+}
+
+pub fn compile(allocator: Allocator, source: []const u8) !Program {
+    var it = StringReader.init(source);
+
+    //clear leading text
+    while (it.next()) |c| {
+        if (c == '[') {
+            break;
+        }
+    }
+
+    const input = parsePositionalInput(allocator, &it);
+    //read symbol bindings
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
     while (it.nextNonWhitespace()) |_| {
@@ -202,7 +208,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         try ex.append(try readAstNode(allocator, &it));
     }
 
-    return Program{ .input = .{ .positional = symbols.items }, .ex = ex };
+    return Program{ .input = input, .ex = ex };
 }
 
 //New expression parser
