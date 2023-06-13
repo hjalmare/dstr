@@ -139,6 +139,17 @@ const StringReader = struct {
             std.debug.print("\t\tReader.rewind offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
         }
     }
+
+    pub fn printError(self: *StringReader, allocator: Allocator, message: []const u8) !void {
+        var ln = try allocator.alloc(u8, self.offset);
+
+        for (ln, 0..) |_, i| {
+            ln[i] = '-';
+        }
+        ln[ln.len - 1] = '^';
+
+        std.debug.print("{s}\n{s}\n{s}\n", .{ .src = self.src, .pt = ln, .message = message });
+    }
 };
 
 fn readSymbol(it: *StringReader) []const u8 {
@@ -244,6 +255,8 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
                     try innerArgs.append(ret);
                     return wrapInFun(allocator, &innerArgs, it);
                 } else {
+                    try it.printError(allocator, "Unexpected character");
+
                     return DestructError.unexpected_char;
                 }
             } else {
@@ -251,10 +264,12 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             }
         } else if (isWhitespace(c)) {
             //LoneRef
+            try it.printError(allocator, "Unexpected character2");
             return DestructError.unexpected_char;
         }
     }
 
+    try it.printError(allocator, "Unexpected character3");
     return DestructError.unexpected_char;
 }
 
@@ -447,10 +462,11 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
         return readStringExpression(allocator, it);
     } else if (isDigit(c)) {
         return readInteger(it);
-    } else if (!isWhitespace(c) and (c != ')')) {
+    } else if (std.ascii.isAlphanumeric(c) and !isWhitespace(c) and (c != ')')) {
         return readRefOrFun(allocator, it);
     }
     //}
 
+    try it.printError(allocator, "Unexpected character5");
     return DestructError.unexpected_char;
 }

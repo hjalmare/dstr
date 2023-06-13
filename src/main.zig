@@ -363,7 +363,7 @@ test "Fail on non alpha ref" {
 test "Fail on underscore ref" {
     const src = "[ one _ two ] one _";
     const input = "aa bb cc";
-    try failTest(src, input, DestructError.anon_ref);
+    try failTest(src, input, DestructError.unexpected_char);
 }
 
 fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !void {
@@ -371,7 +371,10 @@ fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile(allocator, src);
+    const pgm = compile(allocator, src) catch |err| {
+        try expect(err == expected_error);
+        return;
+    };
     const splatInput = try splitInput(allocator, input);
 
     _ = execLine(allocator, pgm, splatInput) catch |err| {
