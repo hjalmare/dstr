@@ -197,7 +197,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         }
     }
 
-    const input = parsePositionalInput(allocator, &it);
+    const input = try parsePositionalInput(allocator, &it);
     //read symbol bindings
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
