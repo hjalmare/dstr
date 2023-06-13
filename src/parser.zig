@@ -306,6 +306,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
                     try subArgList.append(ret);
                     return wrapInFun(allocator, &subArgList, it);
                 } else {
+                    it.rewind();
                     return ret;
                 }
             } else {
