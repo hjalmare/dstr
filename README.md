@@ -118,6 +118,7 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 
 
 ## TODO
+* Template based input parsing `'info: {msg} responseTime:{resptime}'`
 * Nice errors and error checking
 * Faster ref resolution
 * csv parsing
