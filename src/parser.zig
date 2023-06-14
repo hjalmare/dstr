@@ -254,7 +254,17 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         if (debug) {
             std.debug.print("Adding expr\n", .{});
         }
-        try ex.append(try readAstNode(allocator, &it));
+        try ex.append(readAstNode(allocator, &it) catch |err| {
+            switch (err) {
+                DestructError.unexpected_char => {
+                    try it.printUnexpectedCharError(allocator);
+                },
+                else => {
+                    std.debug.print("Compilation error {any}\n", .{ .err = err });
+                },
+            }
+            return err;
+        });
     }
 
     return Program{ .input = input, .ex = ex };
@@ -293,8 +303,6 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
                     try innerArgs.append(ret);
                     return wrapInFun(allocator, &innerArgs, it);
                 } else {
-                    try it.printUnexpectedCharError(allocator);
-
                     return DestructError.unexpected_char;
                 }
             } else {
@@ -302,12 +310,10 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             }
         } else if (isWhitespace(c)) {
             //LoneRef
-            try it.printUnexpectedCharError(allocator);
             return DestructError.unexpected_char;
         }
     }
 
-    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -430,7 +436,6 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             }
 
             it.skipWhitespaceUntil('}') catch {
-                try it.printUnexpectedCharError(allocator);
                 return DestructError.unexpected_char;
             };
 
@@ -509,6 +514,5 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
     }
     //}
 
-    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
