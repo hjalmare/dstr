@@ -94,7 +94,6 @@ const StringReader = struct {
         self.skipWhitespace();
         var n = self.peek();
         if (n != c) {
-            std.debug.print("Unexpected character '{c}' expected '{c}'\n", .{ n, c });
             return DestructError.unexpected_char;
         }
     }
@@ -140,15 +139,16 @@ const StringReader = struct {
         }
     }
 
-    pub fn printError(self: *StringReader, allocator: Allocator, message: []const u8) !void {
+    pub fn printUnexpectedCharError(self: *StringReader, allocator: Allocator) !void {
         var ln = try allocator.alloc(u8, self.offset);
+        defer allocator.free(ln);
 
         for (ln, 0..) |_, i| {
             ln[i] = '-';
         }
         ln[ln.len - 1] = '^';
 
-        std.debug.print("{s}\n{s}\n{s}\n", .{ .src = self.src, .pt = ln, .message = message });
+        std.debug.print("{s}\n{s}\nUnexpected character: '{c}'\n", .{ .src = self.src, .pt = ln, .char = self.peek() });
     }
 };
 
@@ -163,6 +163,45 @@ fn readSymbol(it: *StringReader) []const u8 {
         }
     }
     return it.selection();
+}
+
+const pssState = enum { chars, ref };
+pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParser {
+    var nodes = ArrayList(builtin.SegmentNode).init(allocator);
+    var state = pssState.chars;
+    it.select();
+    while (it.next()) |c| {
+        switch (state) {
+            .chars => {
+                if (c == '{') {
+                    if (it.selection().len > 0) {
+                        try nodes.append(.{ .chars = it.selection() });
+                    }
+                    state = pssState.ref;
+                    it.skipWhitespace();
+                    it.select();
+                } else if (c == '\'') {
+                    break;
+                }
+            },
+            .ref => {
+                if (c == '\'') {
+                    try it.printUnexpectedCharError(allocator);
+                    return DestructError.unexpected_char;
+                } else if (isWhitespace(c)) {
+                    try nodes.append(.{ .ref = it.selection() });
+                    it.skipWhitespaceUntil('}') catch {
+                        try it.printUnexpectedCharError(allocator);
+                        return DestructError.unexpected_char;
+                    };
+                    state = pssState.chars;
+                    it.select();
+                }
+            },
+        }
+    }
+
+    return InputParser{ .segments = nodes.items };
 }
 
 pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParser {
@@ -201,14 +240,13 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
 pub fn compile(allocator: Allocator, source: []const u8) !Program {
     var it = StringReader.init(source);
 
-    //clear leading text
-    while (it.next()) |c| {
-        if (c == '[') {
-            break;
-        }
-    }
+    const firstChar = if (it.nextNonWhitespace()) |c| c else return DestructError.InvalidCharacter;
+    const input = try switch (firstChar) {
+        '[' => parsePositionalInput(allocator, &it),
+        '\'' => parseSegmentInput(allocator, &it),
+        else => return DestructError.InvalidCharacter,
+    };
 
-    const input = try parsePositionalInput(allocator, &it);
     //read symbol bindings
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
@@ -255,7 +293,7 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
                     try innerArgs.append(ret);
                     return wrapInFun(allocator, &innerArgs, it);
                 } else {
-                    try it.printError(allocator, "Unexpected character");
+                    try it.printUnexpectedCharError(allocator);
 
                     return DestructError.unexpected_char;
                 }
@@ -264,12 +302,12 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             }
         } else if (isWhitespace(c)) {
             //LoneRef
-            try it.printError(allocator, "Unexpected character2");
+            try it.printUnexpectedCharError(allocator);
             return DestructError.unexpected_char;
         }
     }
 
-    try it.printError(allocator, "Unexpected character3");
+    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -391,7 +429,11 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
                 _ = it.next(); //skip ending paren if method call
             }
 
-            try it.skipWhitespaceUntil('}');
+            it.skipWhitespaceUntil('}') catch {
+                try it.printUnexpectedCharError(allocator);
+                return DestructError.unexpected_char;
+            };
+
             var n = it.next();
             if (n == null or n == qtType) {
                 //if we reach the end of string just do an early exit
@@ -467,6 +509,6 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
     }
     //}
 
-    try it.printError(allocator, "Unexpected character5");
+    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
