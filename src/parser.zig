@@ -165,9 +165,15 @@ fn readSymbol(it: *StringReader) []const u8 {
     return it.selection();
 }
 
+const InputParserResult = struct {
+    parser: InputParser,
+    refs: []const builtin.RefMap,
+};
+
 const pssState = enum { chars, ref };
-pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParser {
+pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var nodes = ArrayList(builtin.SegmentNode).init(allocator);
+    const refMap = ArrayList(builtin.RefMap).init(allocator);
     var state = pssState.chars;
     it.select();
     while (it.next()) |c| {
@@ -201,11 +207,13 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParser {
         }
     }
 
-    return InputParser{ .segments = nodes.items };
+    return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
 }
 
-pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParser {
+pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var symbols = ArrayList([]const u8).init(allocator);
+    const refMap = ArrayList(builtin.RefMap).init(allocator);
+
     while (it.next()) |c| {
         if (c == ']') {
             break;
@@ -234,7 +242,7 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
         }
     }
 
-    return InputParser{ .positional = symbols.items };
+    return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap.items };
 }
 
 pub fn compile(allocator: Allocator, source: []const u8) !Program {
@@ -267,7 +275,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         });
     }
 
-    return Program{ .input = input, .ex = ex };
+    return Program{ .input = input.parser, .ex = ex };
 }
 
 //New expression parser

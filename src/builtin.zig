@@ -76,6 +76,11 @@ pub const Program = struct {
     ex: ArrayList(AstNode), //Todo: rename to ast?
 };
 
+pub const RefMap = struct {
+    name: []const u8,
+    offset: i32,
+};
+
 pub const InputParserType = enum { positional, segments };
 pub const InputParser = union(InputParserType) {
     positional: [][]const u8,
