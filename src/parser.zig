@@ -210,9 +210,32 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
     return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
 }
 
+pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]builtin.RefMap {
+    var ret = ArrayList(builtin.RefMap).init(allocator);
+
+    var afterEllipse = false;
+
+    for (symbols, 0..) |sym, si| {
+        const dotDotDot = std.mem.eql(u8, sym, "...");
+        const isUnderScore = std.mem.eql(u8, sym, "_");
+        if (dotDotDot) {
+            afterEllipse = true;
+        } else if (!isUnderScore) {
+            var offset: i32 = 0;
+            if (afterEllipse) {
+                offset = @intCast(i32, si) - @intCast(i32, sym.len);
+            } else {
+                offset = @intCast(i32, si);
+            }
+            try ret.append(builtin.RefMap{ .name = sym, .offset = offset });
+        }
+    }
+
+    return ret.items;
+}
+
 pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var symbols = ArrayList([]const u8).init(allocator);
-    const refMap = ArrayList(builtin.RefMap).init(allocator);
 
     while (it.next()) |c| {
         if (c == ']') {
@@ -241,8 +264,9 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
             break;
         }
     }
+    const refMap = try createPositionalRefMap(allocator, symbols.items);
 
-    return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap.items };
+    return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap };
 }
 
 pub fn compile(allocator: Allocator, source: []const u8) !Program {
