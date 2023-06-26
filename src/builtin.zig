@@ -143,15 +143,15 @@ fn resolveRef(symbols: [][]const u8, line: ArrayList([]const u8), ref: []const u
         const dotDotDot = std.mem.eql(u8, sym, "...");
         if (debug) std.debug.print("\tResolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
         if (dotDotDot) {
-            const symLeft = @intCast(i64, symbols.len) - @intCast(i64, si) - 1;
-            offset = @intCast(i64, line.items.len) - symLeft - 1 - @intCast(i64, si);
+            const symLeft = @as(i64, @intCast(symbols.len)) - @as(i64, @intCast(si)) - 1;
+            offset = @as(i64, @intCast(line.items.len)) - symLeft - 1 - @as(i64, @intCast(si));
         } else if (isSame) {
-            const finalOffset = @intCast(i64, si) + offset;
+            const finalOffset = @as(i64, @intCast(si)) + offset;
             if ((finalOffset >= line.items.len) or (finalOffset < 0)) {
                 std.debug.print("Input is to short.\n", .{});
                 return DestructError.missing_input;
             }
-            return line.items[@intCast(usize, finalOffset)];
+            return line.items[@as(usize, @intCast(finalOffset))];
         }
     }
     std.debug.print("\nFailed to resolve ref \"{s}\"\n", .{ref});
@@ -187,7 +187,7 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
 
 fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
     var arg1 = fun.args[0];
-    var asInt = @intCast(usize, try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt());
+    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt()));
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = refStr[0..(asInt)];
@@ -196,7 +196,7 @@ fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const 
 
 fn builtinRPad(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
     var arg1 = fun.args[0];
-    var asInt = @intCast(usize, try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt());
+    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt()));
 
     var refStr = try resolveCharsValue(allocator, program, line, arg1);
     var result = try allocator.alloc(u8, asInt);

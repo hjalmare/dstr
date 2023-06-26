@@ -223,9 +223,9 @@ pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]bu
         } else if (!isUnderScore) {
             var offset: i32 = 0;
             if (afterEllipse) {
-                offset = @intCast(i32, si) - @intCast(i32, sym.len);
+                offset = @as(i32, @intCast(si)) - @as(i32, @intCast(sym.len));
             } else {
-                offset = @intCast(i32, si);
+                offset = @as(i32, @intCast(si));
             }
             try ret.append(builtin.RefMap{ .name = sym, .offset = offset });
         }
