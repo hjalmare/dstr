@@ -528,7 +528,7 @@ pub fn readInteger(it: *StringReader) !AstNode {
     return AstNode{ .int = intVal };
 }
 
-pub fn readAstNode(allocator: Allocator, it: *StringReader) !AstNode {
+pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNode {
     if (debug) {
         std.debug.print("Enter readAstNode\n", .{});
     }
