@@ -223,9 +223,15 @@ pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]bu
         } else if (!isUnderScore) {
             var offset: i32 = 0;
             if (afterEllipse) {
-                offset = @as(i32, @intCast(si)) - @as(i32, @intCast(sym.len));
+                if (debug) {
+                    std.debug.print("\tAfter ellipse: offset:{any} index:{any} len:{any}\n", .{ offset, si, sym.len });
+                }
+                offset = @as(i32, @intCast(si)) - @as(i32, @intCast(symbols.len));
             } else {
                 offset = @as(i32, @intCast(si));
+            }
+            if (debug) {
+                std.debug.print("\tAdding RefMap: '{s}' '{any}' Ellipse: '{any}'\n", .{ sym, offset, afterEllipse });
             }
             try ret.append(builtin.RefMap{ .name = sym, .offset = offset });
         }
@@ -299,7 +305,7 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         });
     }
 
-    return Program{ .input = input.parser, .ex = ex };
+    return Program{ .input = input.parser, .refMap = input.refs, .ex = ex };
 }
 
 //New expression parser

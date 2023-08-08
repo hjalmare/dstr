@@ -73,6 +73,7 @@ pub const AstFun = struct {
 
 pub const Program = struct {
     input: InputParser,
+    refMap: []const RefMap,
     ex: ArrayList(AstNode), //Todo: rename to ast?
 };
 
@@ -122,40 +123,36 @@ pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList
 pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !PrimitiveValue {
     return switch (node) {
         .chars => PrimitiveValue{ .chars = node.chars },
-        .ref => PrimitiveValue{ .chars = try resolveRef(program.input.positional, line, node.ref) },
+        .ref => PrimitiveValue{ .chars = try resolveRef(program.refMap, line.items, node.ref) },
         .fun => node.fun.impl(allocator, program, line, node.fun),
         .int => PrimitiveValue{ .int = node.int },
     };
 }
 
-fn resolveRef(symbols: [][]const u8, line: ArrayList([]const u8), ref: []const u8) ![]const u8 {
-    var offset: i64 = 0;
+fn resolveRef(refMap: []const RefMap, line: [][]const u8, ref: []const u8) ![]const u8 {
+    var offset: ?i32 = null;
 
-    const isUnderScore = std.mem.eql(u8, ref, "_");
-    if (isUnderScore) {
-        //Fail when trying to resolve '_' ref
-        std.debug.print("References to _ is not permitted.\n", .{});
-        return DestructError.anon_ref;
-    }
-
-    for (symbols, 0..) |sym, si| {
-        const isSame = std.mem.eql(u8, sym, ref);
-        const dotDotDot = std.mem.eql(u8, sym, "...");
-        if (debug) std.debug.print("\tResolving ref Sym: '{s}' Ref: '{s}' IsSame: '{any}'\n", .{ sym, ref, isSame });
-        if (dotDotDot) {
-            const symLeft = @as(i64, @intCast(symbols.len)) - @as(i64, @intCast(si)) - 1;
-            offset = @as(i64, @intCast(line.items.len)) - symLeft - 1 - @as(i64, @intCast(si));
-        } else if (isSame) {
-            const finalOffset = @as(i64, @intCast(si)) + offset;
-            if ((finalOffset >= line.items.len) or (finalOffset < 0)) {
-                std.debug.print("Input is to short.\n", .{});
-                return DestructError.missing_input;
-            }
-            return line.items[@as(usize, @intCast(finalOffset))];
+    for (refMap) |r| {
+        if (std.mem.eql(u8, ref, r.name)) {
+            offset = r.offset;
+            break;
         }
     }
-    std.debug.print("\nFailed to resolve ref \"{s}\"\n", .{ref});
-    return DestructError.unknown_ref;
+
+    if (offset) |o| {
+        if (o < 0) {
+            const no: i32 = @as(i32, @intCast(line.len)) + o;
+            return line[@intCast(no)];
+        } else if (o >= line.len) {
+            return DestructError.missing_input;
+        } else {
+            return line[@intCast(o)];
+        }
+    } else {
+        //We didnt find the ref
+        std.debug.print("Unknown ref: {s}\n", .{ref});
+        return DestructError.unknown_ref;
+    }
 }
 
 // Actual builtins
