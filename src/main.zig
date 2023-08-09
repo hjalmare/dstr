@@ -52,6 +52,31 @@ fn splitInput(allocator: Allocator, input: []const u8) !ArrayList([]const u8) {
     return ret;
 }
 
+fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, input: []const u8) ![][]const u8 {
+    var ret = ArrayList([]const u8).init(allocator);
+    var start: usize = 0;
+
+    var wasRef = false;
+
+    for (segments) |seg| {
+        switch (seg) {
+            .chars => {
+                if (wasRef) {
+                    const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
+                    try ret.append(input[start..cIndex]);
+                }
+                wasRef = false;
+            },
+            .ref => {
+                wasRef = true;
+            },
+        }
+    }
+    if (wasRef) {
+        try ret.append(input[start..]);
+    }
+}
+
 fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8)) !ArrayList([]const u8) {
     var ret = ArrayList([]const u8).init(allocator);
 
@@ -121,7 +146,11 @@ pub fn main() !void {
     const stdout = std.io.getStdOut();
 
     while (input) |in| {
-        const splatInput = try splitInput(lineAllocator, in);
+        const splatInput = switch (pgm.input) {
+            .positional => try splitInput(lineAllocator, in),
+            .segments => unreachable,
+        };
+
         var ret = execLine(lineAllocator, pgm, splatInput) catch {
             std.os.exit(1);
         };
