@@ -24,7 +24,7 @@ fn isWhitespace(c: u8) bool {
 //Space Separated String
 const SssMode = enum { START, WORD };
 
-fn splitInput(allocator: Allocator, input: []const u8) !ArrayList([]const u8) {
+fn splitInput(allocator: Allocator, input: []const u8) ![][]const u8 {
     var ret = ArrayList([]const u8).init(allocator);
     var startPos: usize = 0;
     var mode = SssMode.START;
@@ -49,7 +49,7 @@ fn splitInput(allocator: Allocator, input: []const u8) !ArrayList([]const u8) {
     if (mode == SssMode.WORD) {
         try ret.append(input[startPos..]);
     }
-    return ret;
+    return ret.items;
 }
 
 fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, input: []const u8) ![][]const u8 {
@@ -75,9 +75,11 @@ fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, in
     if (wasRef) {
         try ret.append(input[start..]);
     }
+
+    return ret.items();
 }
 
-fn execLine(allocator: Allocator, program: Program, line: ArrayList([]const u8)) !ArrayList([]const u8) {
+fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayList([]const u8) {
     var ret = ArrayList([]const u8).init(allocator);
 
     for (program.ex.items) |ex| {
@@ -148,7 +150,7 @@ pub fn main() !void {
     while (input) |in| {
         const splatInput = switch (pgm.input) {
             .positional => try splitInput(lineAllocator, in),
-            .segments => unreachable,
+            .segments => try splitSegments(allocator, pgm.input, in),
         };
 
         var ret = execLine(lineAllocator, pgm, splatInput) catch {

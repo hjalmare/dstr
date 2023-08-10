@@ -94,7 +94,7 @@ pub const SegmentNode = union(SegmentType) {
     ref: []const u8,
 };
 
-const BuiltinFn = *const fn (Allocator, Program, ArrayList([]const u8), AstFun) DestructError!PrimitiveValue;
+const BuiltinFn = *const fn (Allocator, Program, [][]const u8, AstFun) DestructError!PrimitiveValue;
 const BuiltinValidator = *const fn (AstFun, bool) DestructError!void;
 pub const Builtin = struct {
     name: []const u8,
@@ -115,15 +115,15 @@ const builtins = [_]Builtin{
 // Executor enginge, recursively resolve values
 // ====================================================================================
 
-pub fn resolveCharsValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) ![]const u8 {
+pub fn resolveCharsValue(allocator: Allocator, program: Program, line: [][]const u8, node: AstNode) ![]const u8 {
     var ret = try resolvePrimitiveValue(allocator, program, line, node);
     return ret.toChars(allocator);
 }
 
-pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: ArrayList([]const u8), node: AstNode) !PrimitiveValue {
+pub fn resolvePrimitiveValue(allocator: Allocator, program: Program, line: [][]const u8, node: AstNode) !PrimitiveValue {
     return switch (node) {
         .chars => PrimitiveValue{ .chars = node.chars },
-        .ref => PrimitiveValue{ .chars = try resolveRef(program.refMap, line.items, node.ref) },
+        .ref => PrimitiveValue{ .chars = try resolveRef(program.refMap, line, node.ref) },
         .fun => node.fun.impl(allocator, program, line, node.fun),
         .int => PrimitiveValue{ .int = node.int },
     };
@@ -167,7 +167,7 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     return DestructError.unknown_function;
 }
 
-fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinUpper(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     if (fun.args.len != 1) {
         std.debug.print(
             "Failed to execute 'upper', expects 0 arguments but got {d}\n",
@@ -182,7 +182,7 @@ fn builtinUpper(allocator: Allocator, program: Program, line: ArrayList([]const 
     return PrimitiveValue{ .chars = refBuf };
 }
 
-fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinFirst(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = fun.args[0];
     var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt()));
 
@@ -191,7 +191,7 @@ fn builtinFirst(allocator: Allocator, program: Program, line: ArrayList([]const 
     return PrimitiveValue{ .chars = result };
 }
 
-fn builtinRPad(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinRPad(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = fun.args[0];
     var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, program, line, fun.args[1])).toInt()));
 
@@ -210,7 +210,7 @@ fn builtinRPad(allocator: Allocator, program: Program, line: ArrayList([]const u
     return PrimitiveValue{ .chars = result };
 }
 
-fn builtinStr(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinStr(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var strBuf = std.ArrayList(u8).init(allocator);
     for (fun.args) |arg| {
         try strBuf.appendSlice(try resolveCharsValue(allocator, program, line, arg));
@@ -223,7 +223,7 @@ fn primBool(b: bool) PrimitiveValue {
     return PrimitiveValue{ .bool = b };
 }
 
-fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinEq(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     if (debug) {
         std.debug.print("builtinEq \n", .{});
     }
@@ -243,19 +243,19 @@ fn builtinEq(allocator: Allocator, program: Program, line: ArrayList([]const u8)
     }
 }
 
-fn builtinStartsWith(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinStartsWith(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, program, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.startsWith(u8, arg1, arg2) };
 }
 
-fn builtinEndsWith(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinEndsWith(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = try resolveCharsValue(allocator, program, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, program, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
 }
 
-fn builtinIf(allocator: Allocator, program: Program, line: ArrayList([]const u8), fun: AstFun) !PrimitiveValue {
+fn builtinIf(allocator: Allocator, program: Program, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     if (debug) {
         std.debug.print("builtinIf \n", .{});
     }
