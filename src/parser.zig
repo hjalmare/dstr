@@ -195,7 +195,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     if (debug) {
                         std.debug.print("\tBreaking with selection: '{s}' \n", .{it.selection()});
                     }
-                    it.select();
+                    //it.select();
                     break;
                 }
             },
@@ -214,6 +214,14 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         return DestructError.unexpected_char;
                     };
                     state = pssState.chars;
+                    _ = it.next(); //Skip trailing }
+                    if (it.peek() == '\'') {
+                        if (debug) {
+                            std.debug.print("\tBreaking with selection: '{s}' \n", .{it.selection()});
+                        }
+                        it.select();
+                        break;
+                    }
                     it.select();
                 } else if (c == '}') {
                     if (debug) {
@@ -225,6 +233,10 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     _ = it.next(); //Skip trailing }
                     it.select();
                     if (it.peek() == '\'') {
+                        if (debug) {
+                            std.debug.print("\tBreaking with selection: '{s}' \n", .{it.selection()});
+                        }
+                        it.select();
                         break;
                     }
                 }
