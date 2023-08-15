@@ -61,9 +61,20 @@ fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, in
     for (segments) |seg| {
         switch (seg) {
             .chars => {
+                if (debug) {
+                    std.debug.print("Entry: '{any}' Chars '{s}'\n", .{ start, seg.chars });
+                }
+                const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
+
                 if (wasRef) {
-                    const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
-                    try ret.append(input[start..cIndex]);
+                    try ret.append(input[start..(start + cIndex)]);
+                    if (debug) {
+                        std.debug.print("Was Ref:{any} {any} {s}\n", .{ start, cIndex, input[start..(start + cIndex)] });
+                    }
+                }
+                start = start + cIndex + seg.chars.len;
+                if (debug) {
+                    std.debug.print("Chars Start:{any} {s}\n", .{ start, seg.chars });
                 }
                 wasRef = false;
             },
@@ -76,7 +87,7 @@ fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, in
         try ret.append(input[start..]);
     }
 
-    return ret.items();
+    return ret.items;
 }
 
 fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayList([]const u8) {
@@ -150,7 +161,7 @@ pub fn main() !void {
     while (input) |in| {
         const splatInput = switch (pgm.input) {
             .positional => try splitInput(lineAllocator, in),
-            .segments => try splitSegments(allocator, pgm.input, in),
+            .segments => try splitSegments(allocator, pgm.input.segments, in),
         };
 
         var ret = execLine(lineAllocator, pgm, splatInput) catch {

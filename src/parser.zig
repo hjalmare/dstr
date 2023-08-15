@@ -173,20 +173,29 @@ const InputParserResult = struct {
 const pssState = enum { chars, ref };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var nodes = ArrayList(builtin.SegmentNode).init(allocator);
-    const refMap = ArrayList(builtin.RefMap).init(allocator);
+    var refMap = ArrayList(builtin.RefMap).init(allocator);
     var state = pssState.chars;
+    _ = it.next(); //Skipp leading quote
     it.select();
     while (it.next()) |c| {
         switch (state) {
             .chars => {
                 if (c == '{') {
                     if (it.selection().len > 0) {
+                        if (debug) {
+                            std.debug.print("\tAdding CharsSegment: '{s}' \n", .{it.selection()});
+                        }
                         try nodes.append(.{ .chars = it.selection() });
                     }
                     state = pssState.ref;
+                    _ = it.next(); //skip leading {}
                     it.skipWhitespace();
                     it.select();
                 } else if (c == '\'') {
+                    if (debug) {
+                        std.debug.print("\tBreaking with selection: '{s}' \n", .{it.selection()});
+                    }
+                    it.select();
                     break;
                 }
             },
@@ -195,16 +204,39 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     try it.printUnexpectedCharError(allocator);
                     return DestructError.unexpected_char;
                 } else if (isWhitespace(c)) {
+                    if (debug) {
+                        std.debug.print("\tAdding RefMap WS: '{s}' \n", .{it.selection()});
+                    }
                     try nodes.append(.{ .ref = it.selection() });
+                    try refMap.append(builtin.RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
                     it.skipWhitespaceUntil('}') catch {
                         try it.printUnexpectedCharError(allocator);
                         return DestructError.unexpected_char;
                     };
                     state = pssState.chars;
                     it.select();
+                } else if (c == '}') {
+                    if (debug) {
+                        std.debug.print("\tAdding RefMap: '{s}' \n", .{it.selection()});
+                    }
+                    try nodes.append(.{ .ref = it.selection() });
+                    try refMap.append(builtin.RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
+                    state = pssState.chars;
+                    _ = it.next(); //Skip trailing }
+                    it.select();
+                    if (it.peek() == '\'') {
+                        break;
+                    }
                 }
             },
         }
+    }
+
+    if (it.selection().len > 0) {
+        if (debug) {
+            std.debug.print("\tAdding trailing CharsSegment: '{s}' \n", .{it.selection()});
+        }
+        try nodes.append(.{ .chars = it.selection() });
     }
 
     return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
