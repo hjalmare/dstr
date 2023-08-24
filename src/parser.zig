@@ -170,13 +170,21 @@ const InputParserResult = struct {
     refs: []const builtin.RefMap,
 };
 
+//TODO: Dirty as hell but it mostly works, cleanup later :D
 const pssState = enum { chars, ref };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var nodes = ArrayList(builtin.SegmentNode).init(allocator);
     var refMap = ArrayList(builtin.RefMap).init(allocator);
-    var state = pssState.chars;
     _ = it.next(); //Skipp leading quote
     it.select();
+
+    var state = pssState.chars;
+    if (it.peek() == '{') {
+        state = pssState.ref;
+        _ = it.next();
+        it.select();
+    }
+
     while (it.next()) |c| {
         switch (state) {
             .chars => {

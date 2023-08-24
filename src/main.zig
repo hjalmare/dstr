@@ -198,6 +198,27 @@ pub fn main() !void {
     }
 }
 
+test "segment.input.single.mid" {
+    const input = "0123456789";
+    const src = "'01{a}456789' a";
+    const expectedOutput = [_][]const u8{"23"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.single.start" {
+    const input = "0123456789";
+    const src = "'{a}23456789' a";
+    const expectedOutput = [_][]const u8{"01"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.single.end" {
+    const input = "0123456789";
+    const src = "'01234567{a}' a";
+    const expectedOutput = [_][]const u8{"89"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Ellipsis and string interpolation" {
     const src = "[ one ... two ]   two ' '  'says {one} aswell' ";
     const input = "hello a b c malte";
@@ -474,7 +495,10 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     defer gpa.deinit();
 
     const pgm = try compile(allocator, src);
-    const splatInput = try splitInput(allocator, input);
+    const splatInput = switch (pgm.input) {
+        .positional => try splitInput(allocator, input),
+        .segments => try splitSegments(allocator, pgm.input.segments, input),
+    };
     var ret = try execLine(allocator, pgm, splatInput);
     try assertStrSlice(ret.items, expected[0..]);
 }
