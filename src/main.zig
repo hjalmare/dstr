@@ -65,9 +65,9 @@ fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, in
                     std.debug.print("Entry: '{any}' Chars '{s}'\n", .{ start, seg.chars });
                 }
                 const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
-
-                if (wasRef) {
-                    try ret.append(input[start..(start + cIndex)]);
+                const inSlice = input[start..(start + cIndex)];
+                if (wasRef and !std.mem.eql(u8, "_", inSlice)) {
+                    try ret.append(inSlice);
                     if (debug) {
                         std.debug.print("Was Ref:{any} {any} {s}\n", .{ start, cIndex, input[start..(start + cIndex)] });
                     }
@@ -83,8 +83,13 @@ fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, in
             },
         }
     }
-    if (wasRef) {
-        try ret.append(input[start..]);
+
+    const inSlice = input[start..];
+    if (wasRef and !std.mem.eql(u8, "_", inSlice)) {
+        try ret.append(inSlice);
+        if (debug) {
+            std.debug.print("Trailing ref Ref: {any} {s}\n", .{ start, inSlice });
+        }
     }
 
     return ret.items;
@@ -216,6 +221,27 @@ test "segment.input.single.end" {
     const input = "0123456789";
     const src = "'01234567{a}' a";
     const expectedOutput = [_][]const u8{"89"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.single.all" {
+    const input = "0123456789";
+    const src = "'{a}' a";
+    const expectedOutput = [_][]const u8{"0123456789"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.double.all" {
+    const input = "0123456789";
+    const src = "'{a}3456{b}9' a b";
+    const expectedOutput = [_][]const u8{ "012", "78" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.double.skip" {
+    const input = "0123456789";
+    const src = "'{_}3456{a}9' a";
+    const expectedOutput = [_][]const u8{"78"};
     try quickTest(src, input, expectedOutput[0..]);
 }
 
