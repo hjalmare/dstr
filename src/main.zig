@@ -163,6 +163,12 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut();
 
+    const stream: builtin.StreamStep = if (args.len == 2) {
+        builtin.SystemOutStep{ .writer = stdout };
+    } else {
+        builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] };
+    };
+
     while (input) |in| {
         const splatInput = switch (pgm.input) {
             .positional => try splitInput(lineAllocator, in),
@@ -173,25 +179,7 @@ pub fn main() !void {
             std.os.exit(1);
         };
 
-        if (args.len == 2) {
-            //Echo mode
-            for (ret.items, 0..) |o, i| {
-                if (i != 0) try stdout.writer().writeAll(" ");
-
-                try stdout.writer().writeAll(o);
-            }
-            try stdout.writer().writeAll("\n");
-        } else {
-            var cmdLine = ArrayList([]const u8).init(lineAllocator);
-            try cmdLine.append(args[2]);
-            try cmdLine.appendSlice(ret.items);
-            var cp = std.ChildProcess.init(cmdLine.items, lineAllocator);
-            _ = cp.spawnAndWait() catch {
-                std.debug.print("Failed to execute '{s}'\n", .{args[2]});
-                std.os.exit(1);
-            };
-        }
-
+        stream.accept(line);
         //Reset allocator and read a new line of input
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
 

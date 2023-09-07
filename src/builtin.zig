@@ -72,7 +72,19 @@ pub const AstFun = struct {
 };
 
 pub const StreamStepType = enum { collect, systemOut, exec };
-pub const StreamStep = union(StreamStepType) {};
+pub const StreamStep = union(StreamStepType) {
+    collect: CollectStep,
+    systemOut: SystemOutStep,
+    exec: ExecStep,
+
+    pub fn accept(self: StreamStep, line: [][]const u8) !void {
+        switch (self) {
+            .collect => try self.collect.accept(line),
+            .systemOut => try self.systemOut.accept(line),
+            .exec => try self.exec.accept(line),
+        }
+    }
+};
 
 pub const FilterStep = struct {
     next: StreamStep,
@@ -106,6 +118,7 @@ pub const ExecStep = struct {
         };
     }
 };
+
 pub const CollectStep = struct {
     items: ArrayList([][]const u8),
 
