@@ -182,8 +182,6 @@ pub fn main() !void {
             }
             try stdout.writer().writeAll("\n");
         } else {
-            //Exec mode
-            //TODO: handle exec errors nicely
             var cmdLine = ArrayList([]const u8).init(lineAllocator);
             try cmdLine.append(args[2]);
             try cmdLine.appendSlice(ret.items);
@@ -195,9 +193,7 @@ pub fn main() !void {
         }
 
         //Reset allocator and read a new line of input
-        lineArena.deinit();
-        lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        lineAllocator = lineArena.allocator();
+        _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
 
         input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
     }

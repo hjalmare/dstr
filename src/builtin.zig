@@ -71,6 +71,49 @@ pub const AstFun = struct {
     }
 };
 
+pub const StreamStepType = enum { collect, systemOut, exec };
+pub const StreamStep = union(StreamStepType) {};
+
+pub const FilterStep = struct {
+    next: StreamStep,
+    predicates: []const AstNode,
+};
+
+pub const SystemOutStep = struct {
+    writer: std.io.File,
+
+    pub fn accept(self: SystemOutStep, line: [][]const u8) !void {
+        for (line, 0..) |o, i| {
+            if (i != 0) try self.writer.writer().writeAll(" ");
+
+            try self.writer.writer().writeAll(o);
+        }
+        try self.writer.writer().writeAll("\n");
+    }
+};
+pub const ExecStep = struct {
+    allocator: Allocator,
+    cmd: []const u8,
+
+    pub fn accept(self: ExecStep, line: [][]const u8) !void {
+        var cmdLine = ArrayList([]const u8).init(self.allocator);
+        try cmdLine.append(self.cmd);
+        try cmdLine.appendSlice(line);
+        var cp = std.ChildProcess.init(cmdLine.items, self.allocator);
+        _ = cp.spawnAndWait() catch {
+            std.debug.print("Failed to execute '{s}'\n", .{self.cmd});
+            std.os.exit(1);
+        };
+    }
+};
+pub const CollectStep = struct {
+    items: ArrayList([][]const u8),
+
+    pub fn accept(self: CollectStep, line: [][]const u8) !void {
+        try self.items.append(line);
+    }
+};
+
 pub const Program = struct {
     input: InputParser,
     refMap: []const RefMap,
