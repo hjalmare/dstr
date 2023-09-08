@@ -163,11 +163,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut();
 
-    const stream: builtin.StreamStep = if (args.len == 2) {
-        builtin.SystemOutStep{ .writer = stdout };
-    } else {
-        builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] };
-    };
+    var stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
 
     while (input) |in| {
         const splatInput = switch (pgm.input) {
@@ -179,7 +175,7 @@ pub fn main() !void {
             std.os.exit(1);
         };
 
-        stream.accept(line);
+        try stream.accept(ret.items);
         //Reset allocator and read a new line of input
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
 

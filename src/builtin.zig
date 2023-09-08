@@ -18,6 +18,7 @@ pub const DestructError = error{
     OutOfMemory,
     InvalidCharacter,
     Overflow,
+    undefined,
 };
 pub const PrimitiveValueType = enum { chars, int, bool };
 pub const PrimitiveValue = union(PrimitiveValueType) {
@@ -77,8 +78,8 @@ pub const StreamStep = union(StreamStepType) {
     systemOut: SystemOutStep,
     exec: ExecStep,
 
-    pub fn accept(self: StreamStep, line: [][]const u8) !void {
-        switch (self) {
+    pub fn accept(self: *StreamStep, line: [][]const u8) !void {
+        switch (self.*) {
             .collect => try self.collect.accept(line),
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
@@ -92,7 +93,7 @@ pub const FilterStep = struct {
 };
 
 pub const SystemOutStep = struct {
-    writer: std.io.File,
+    writer: std.fs.File,
 
     pub fn accept(self: SystemOutStep, line: [][]const u8) !void {
         for (line, 0..) |o, i| {
@@ -122,7 +123,7 @@ pub const ExecStep = struct {
 pub const CollectStep = struct {
     items: ArrayList([][]const u8),
 
-    pub fn accept(self: CollectStep, line: [][]const u8) !void {
+    pub fn accept(self: *CollectStep, line: [][]const u8) !void {
         try self.items.append(line);
     }
 };
