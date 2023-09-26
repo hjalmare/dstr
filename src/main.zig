@@ -336,6 +336,18 @@ test "String interpolation with spaces" {
     const expectedOutput = [_][]const u8{"aa-aa"};
     try quickTest(src, input, expectedOutput[0..]);
 }
+
+//=========================================================================
+// Streams
+
+test "stream.filter.match" {
+    const src = "[a].filter(a.startsWith('a')) a";
+    const input = "aa";
+
+    const expectedOutput = [_][]const u8{"aa"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 //=========================================================================
 // Functions
 

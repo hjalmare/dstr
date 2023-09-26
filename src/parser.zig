@@ -337,6 +337,11 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         else => return DestructError.InvalidCharacter,
     };
 
+    if (it.next() == '.') {
+        var ll = ArrayList(AstNode).init(allocator);
+        try parseStreamFun(allocator, &ll, &it);
+        std.debug.print("################", .{});
+    }
     //read symbol bindings
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
@@ -360,7 +365,52 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
     return Program{ .input = input.parser, .refMap = input.refs, .ex = ex };
 }
 
-//New expression parser
+//Stream parser
+// ==============================================================00
+
+pub fn parseStreamFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !void {
+    if (debug) {
+        std.debug.print("Enter wrapInFun\n", .{});
+    }
+
+    _ = it.next(); //Skip leading '.'
+    it.select();
+
+    while (it.next()) |c| {
+        if (c == '.') {
+            return DestructError.unexpected_char;
+        } else if (c == '(') {
+            //Fun
+            var funName = it.selection();
+            try readArgList(allocator, it, argList);
+            if (debug) {
+                std.debug.print("\tProducing fun '{s}'\n", .{funName});
+            }
+            //var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+            if (it.next()) |lahead| {
+                if (isWhitespace(lahead) or lahead == '}') {
+                    return; //ret;
+                } else if (lahead == ')') {
+                    it.rewind();
+                    return; //ret;
+                } else if (lahead == '.') {
+                    //var innerArgs = ArrayList(AstNode).init(allocator);
+                    //try innerArgs.append(ret);
+                    return; //wrapInFun(allocator, &innerArgs, it);
+                } else {
+                    return DestructError.unexpected_char;
+                }
+            } else {
+                return; //;ret;
+            }
+        } else if (isWhitespace(c)) {
+            //LoneRef
+            return DestructError.unexpected_char;
+        }
+    }
+
+    return DestructError.unexpected_char;
+} //New expression parser
 //Holy off by one error batman, tokenizing would really help :D
 
 pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !AstNode {
