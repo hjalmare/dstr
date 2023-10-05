@@ -72,24 +72,30 @@ pub const AstFun = struct {
     }
 };
 
-pub const StreamStepType = enum { collect, systemOut, exec };
+pub const StreamStepType = enum { collect, systemOut, exec, filter };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
     exec: ExecStep,
+    filter: FilterStep,
 
     pub fn accept(self: *StreamStep, line: [][]const u8) !void {
         switch (self.*) {
             .collect => try self.collect.accept(line),
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
+            .filter => try self.filter.accept(line),
         }
     }
 };
 
 pub const FilterStep = struct {
-    next: StreamStep,
+    next: *const StreamStep,
     predicates: []const AstNode,
+
+    pub fn accept(self: SystemOutStep, line: [][]const u8) !void {
+        self.next.accept(line);
+    }
 };
 
 pub const SystemOutStep = struct {
@@ -104,6 +110,7 @@ pub const SystemOutStep = struct {
         try self.writer.writer().writeAll("\n");
     }
 };
+
 pub const ExecStep = struct {
     allocator: Allocator,
     cmd: []const u8,
@@ -132,6 +139,7 @@ pub const Program = struct {
     input: InputParser,
     refMap: []const RefMap,
     ex: ArrayList(AstNode), //Todo: rename to ast?
+    stream: *const StreamStep,
 };
 
 pub const RefMap = struct {

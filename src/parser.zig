@@ -327,7 +327,7 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
     return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap };
 }
 
-pub fn compile(allocator: Allocator, source: []const u8) !Program {
+pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *const builtin.StreamStep) !Program {
     var it = StringReader.init(source);
 
     const firstChar = if (it.nextNonWhitespace()) |c| c else return DestructError.InvalidCharacter;
@@ -337,11 +337,14 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         else => return DestructError.InvalidCharacter,
     };
 
+    var stream: *const builtin.StreamStep = undefined;
     if (it.next() == '.') {
-        var ll = ArrayList(AstNode).init(allocator);
-        try parseStreamFun(allocator, &ll, &it);
+        stream = try parseStreamFun(allocator, terminalStream, &it);
         std.debug.print("################", .{});
+    } else {
+        stream = terminalStream;
     }
+
     //read symbol bindings
     //read expressions
     var ex = ArrayList(AstNode).init(allocator);
@@ -362,15 +365,15 @@ pub fn compile(allocator: Allocator, source: []const u8) !Program {
         });
     }
 
-    return Program{ .input = input.parser, .refMap = input.refs, .ex = ex };
+    return Program{ .input = input.parser, .refMap = input.refs, .ex = ex, .stream = stream };
 }
 
 //Stream parser
 // ==============================================================00
 
-pub fn parseStreamFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !void {
+pub fn parseStreamFun(allocator: Allocator, parentStream: *const builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
     if (debug) {
-        std.debug.print("Enter wrapInFun\n", .{});
+        std.debug.print("Enter parseStreamFun\n", .{});
     }
 
     _ = it.next(); //Skip leading '.'
@@ -382,26 +385,30 @@ pub fn parseStreamFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *S
         } else if (c == '(') {
             //Fun
             var funName = it.selection();
-            try readArgList(allocator, it, argList);
+            var argList = ArrayList(AstNode).init(allocator);
+            try readArgList(allocator, it, &argList);
             if (debug) {
-                std.debug.print("\tProducing fun '{s}'\n", .{funName});
+                std.debug.print("\tProducing StreamStep '{s}'\n", .{funName});
             }
             //var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+            var ret = try allocator.create(builtin.StreamStep);
+            ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items } };
+
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
-                    return; //ret;
+                    return ret; //ret;
                 } else if (lahead == ')') {
                     it.rewind();
-                    return; //ret;
+                    return ret;
                 } else if (lahead == '.') {
                     //var innerArgs = ArrayList(AstNode).init(allocator);
                     //try innerArgs.append(ret);
-                    return; //wrapInFun(allocator, &innerArgs, it);
+                    return parseStreamFun(allocator, ret, it); //wrapInFun(allocator, &innerArgs, it);
                 } else {
                     return DestructError.unexpected_char;
                 }
             } else {
-                return; //;ret;
+                return ret;
             }
         } else if (isWhitespace(c)) {
             //LoneRef

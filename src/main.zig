@@ -151,10 +151,6 @@ pub fn main() !void {
     }
 
     const src = args[1];
-    const pgm = compile(allocator, src) catch {
-        std.os.exit(1);
-    };
-
     //Read system in
     var stdinBuff = std.io.bufferedReader(std.io.getStdIn().reader());
     var stdin = stdinBuff.reader();
@@ -163,7 +159,11 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut();
 
-    var stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+    const stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+
+    const pgm = compile(allocator, src, &stream) catch {
+        std.os.exit(1);
+    };
 
     while (input) |in| {
         const splatInput = switch (pgm.input) {
@@ -447,12 +447,17 @@ test "Fail on underscore ref" {
     try failTest(src, input, DestructError.unexpected_char);
 }
 
+fn soutStream() builtin.StreamStep {
+    const stdout = std.io.getStdOut();
+    return builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } };
+}
+
 fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !void {
     var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = compile(allocator, src) catch |err| {
+    const pgm = compile(allocator, src, &soutStream()) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -471,7 +476,7 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    _ = compile(allocator, src) catch |err| {
+    _ = compile(allocator, src, &soutStream()) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -487,7 +492,7 @@ test "comp2 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile(allocator, src);
+    const pgm = try compile(allocator, src, &soutStream());
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "strings baby", "aa", "cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -501,7 +506,7 @@ test "comp3 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile(allocator, src);
+    const pgm = try compile(allocator, src, &soutStream());
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "aa", "strings cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -512,7 +517,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile(allocator, src);
+    const pgm = try compile(allocator, src, &soutStream());
     const splatInput = switch (pgm.input) {
         .positional => try splitInput(allocator, input),
         .segments => try splitSegments(allocator, pgm.input.segments, input),
