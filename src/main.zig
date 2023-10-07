@@ -99,7 +99,7 @@ fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayLi
     var ret = ArrayList([]const u8).init(allocator);
 
     for (program.ex.items) |ex| {
-        try ret.append(try resolveCharsValue(allocator, program, line, ex));
+        try ret.append(try resolveCharsValue(allocator, program.refMap, line, ex));
     }
 
     return ret;
