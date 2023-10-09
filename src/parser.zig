@@ -327,7 +327,7 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
     return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap };
 }
 
-pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *const builtin.StreamStep) !Program {
+pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builtin.StreamStep) !Program {
     var it = StringReader.init(source);
 
     const firstChar = if (it.nextNonWhitespace()) |c| c else return DestructError.InvalidCharacter;
@@ -337,10 +337,9 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *const 
         else => return DestructError.InvalidCharacter,
     };
 
-    var stream: *const builtin.StreamStep = undefined;
+    var stream: *builtin.StreamStep = undefined;
     if (it.next() == '.') {
-        stream = try parseStreamFun(allocator, terminalStream, &it);
-        std.debug.print("################", .{});
+        stream = try parseStreamFun(allocator, input.refs, terminalStream, &it);
     } else {
         stream = terminalStream;
     }
@@ -371,7 +370,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *const 
 //Stream parser
 // ==============================================================00
 
-pub fn parseStreamFun(allocator: Allocator, parentStream: *const builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
+pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, parentStream: *builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
     if (debug) {
         std.debug.print("Enter parseStreamFun\n", .{});
     }
@@ -392,7 +391,7 @@ pub fn parseStreamFun(allocator: Allocator, parentStream: *const builtin.StreamS
             }
             //var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
             var ret = try allocator.create(builtin.StreamStep);
-            ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items } };
+            ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
 
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
@@ -403,7 +402,7 @@ pub fn parseStreamFun(allocator: Allocator, parentStream: *const builtin.StreamS
                 } else if (lahead == '.') {
                     //var innerArgs = ArrayList(AstNode).init(allocator);
                     //try innerArgs.append(ret);
-                    return parseStreamFun(allocator, ret, it); //wrapInFun(allocator, &innerArgs, it);
+                    return parseStreamFun(allocator, refMap, ret, it); //wrapInFun(allocator, &innerArgs, it);
                 } else {
                     return DestructError.unexpected_char;
                 }

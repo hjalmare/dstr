@@ -79,35 +79,50 @@ pub const StreamStep = union(StreamStepType) {
     exec: ExecStep,
     filter: FilterStep,
 
-    pub fn accept(self: *StreamStep, line: [][]const u8) !void {
+    pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
         switch (self.*) {
             .collect => try self.collect.accept(line),
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
-            .filter => try self.filter.accept(line),
+            .filter => try self.filter.accept(line_allocator, line),
         }
     }
 };
 
 pub const FilterStep = struct {
-    next: *const StreamStep,
+    next: *StreamStep,
     predicates: []const AstNode,
+    refMap: []const RefMap,
 
-    pub fn accept(self: SystemOutStep, line: [][]const u8) !void {
-        self.next.accept(line);
+    pub fn accept(self: FilterStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+        for (self.predicates) |pred| {
+            var p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
+
+            if (!p) {
+                return;
+            }
+        }
+
+        try self.next.accept(line_allocator, line);
     }
 };
 
 pub const SystemOutStep = struct {
     writer: std.fs.File,
 
-    pub fn accept(self: SystemOutStep, line: [][]const u8) !void {
+    pub fn accept(self: SystemOutStep, line: [][]const u8) DestructError!void {
         for (line, 0..) |o, i| {
-            if (i != 0) try self.writer.writer().writeAll(" ");
+            if (i != 0) self.writer.writer().writeAll(" ") catch {
+                return DestructError.undefined;
+            };
 
-            try self.writer.writer().writeAll(o);
+            self.writer.writer().writeAll(o) catch {
+                return DestructError.undefined;
+            };
         }
-        try self.writer.writer().writeAll("\n");
+        self.writer.writer().writeAll("\n") catch {
+            return DestructError.undefined;
+        };
     }
 };
 
@@ -139,7 +154,7 @@ pub const Program = struct {
     input: InputParser,
     refMap: []const RefMap,
     ex: ArrayList(AstNode), //Todo: rename to ast?
-    stream: *const StreamStep,
+    stream: *StreamStep,
 };
 
 pub const RefMap = struct {

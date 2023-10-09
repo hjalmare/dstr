@@ -159,7 +159,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut();
 
-    const stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+    var stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
 
     const pgm = compile(allocator, src, &stream) catch {
         std.os.exit(1);
@@ -175,7 +175,7 @@ pub fn main() !void {
             std.os.exit(1);
         };
 
-        try stream.accept(ret.items);
+        try pgm.stream.accept(lineAllocator, ret.items);
         //Reset allocator and read a new line of input
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
 
