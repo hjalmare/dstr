@@ -337,11 +337,13 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         else => return DestructError.InvalidCharacter,
     };
 
+    var evalStep = try allocator.create(builtin.StreamStep);
+
     var stream: *builtin.StreamStep = undefined;
     if (it.next() == '.') {
-        stream = try parseStreamFun(allocator, input.refs, terminalStream, &it);
+        stream = try parseStreamFun(allocator, input.refs, evalStep, &it);
     } else {
-        stream = terminalStream;
+        stream = evalStep;
     }
 
     //read symbol bindings
@@ -364,6 +366,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         });
     }
 
+    evalStep.* = builtin.StreamStep{ .eval = builtin.EvalStep{ .next = terminalStream, .refMap = input.refs, .expressions = ex.items } };
     return Program{ .input = input.parser, .refMap = input.refs, .ex = ex, .stream = stream };
 }
 

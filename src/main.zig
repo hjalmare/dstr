@@ -160,7 +160,6 @@ pub fn main() !void {
     const stdout = std.io.getStdOut();
 
     var stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
-
     const pgm = compile(allocator, src, &stream) catch {
         std.os.exit(1);
     };
@@ -171,11 +170,7 @@ pub fn main() !void {
             .segments => try splitSegments(allocator, pgm.input.segments, in),
         };
 
-        var ret = execLine(lineAllocator, pgm, splatInput) catch {
-            std.os.exit(1);
-        };
-
-        try pgm.stream.accept(lineAllocator, ret.items);
+        try pgm.stream.accept(lineAllocator, splatInput);
         //Reset allocator and read a new line of input
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
 
@@ -457,7 +452,8 @@ fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = compile(allocator, src, &soutStream()) catch |err| {
+    var streamStep: builtin.StreamStep = soutStream();
+    const pgm = compile(allocator, src, &streamStep) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -476,7 +472,8 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    _ = compile(allocator, src, &soutStream()) catch |err| {
+    var streamStep: builtin.StreamStep = soutStream();
+    _ = compile(allocator, src, &streamStep) catch |err| {
         try expect(err == expected_error);
         return;
     };
@@ -492,7 +489,8 @@ test "comp2 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile(allocator, src, &soutStream());
+    var streamStep: builtin.StreamStep = soutStream();
+    const pgm = try compile(allocator, src, &streamStep);
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "strings baby", "aa", "cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -506,7 +504,8 @@ test "comp3 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    const pgm = try compile(allocator, src, &soutStream());
+    var streamStep: builtin.StreamStep = soutStream();
+    const pgm = try compile(allocator, src, &streamStep);
     var ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "aa", "strings cc" };
     try assertStrSlice(ret.items, expected[0..]);
@@ -517,7 +516,8 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    const pgm = try compile(allocator, src, &soutStream());
+    var streamStep: builtin.StreamStep = soutStream();
+    const pgm = try compile(allocator, src, &streamStep);
     const splatInput = switch (pgm.input) {
         .positional => try splitInput(allocator, input),
         .segments => try splitSegments(allocator, pgm.input.segments, input),

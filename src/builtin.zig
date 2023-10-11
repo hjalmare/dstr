@@ -72,12 +72,13 @@ pub const AstFun = struct {
     }
 };
 
-pub const StreamStepType = enum { collect, systemOut, exec, filter };
+pub const StreamStepType = enum { collect, systemOut, exec, filter, eval };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
     exec: ExecStep,
     filter: FilterStep,
+    eval: EvalStep,
 
     pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
         switch (self.*) {
@@ -85,6 +86,7 @@ pub const StreamStep = union(StreamStepType) {
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
             .filter => try self.filter.accept(line_allocator, line),
+            .eval => try self.eval.accept(line_allocator, line),
         }
     }
 };
@@ -104,6 +106,23 @@ pub const FilterStep = struct {
         }
 
         try self.next.accept(line_allocator, line);
+    }
+};
+
+pub const EvalStep = struct {
+    next: *StreamStep,
+    expressions: []const AstNode,
+    refMap: []const RefMap,
+
+    pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+        var ret = ArrayList([]const u8).init(line_allocator);
+        for (self.expressions) |pred| {
+            var p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
+
+            try ret.append(p);
+        }
+
+        try self.next.accept(line_allocator, ret.items);
     }
 };
 
