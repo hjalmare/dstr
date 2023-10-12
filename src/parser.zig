@@ -366,6 +366,13 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         });
     }
 
+    if (debug) {
+        var prefix = ArrayList(u8).init(allocator);
+        for (ex.items) |i| {
+            try i.print(&prefix);
+        }
+        prefix.deinit();
+    }
     evalStep.* = builtin.StreamStep{ .eval = builtin.EvalStep{ .next = terminalStream, .refMap = input.refs, .expressions = ex.items } };
     return Program{ .input = input.parser, .refMap = input.refs, .ex = ex, .stream = stream };
 }
@@ -486,6 +493,9 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         it.skipWhitespace();
     }
 
+    if (debug) {
+        std.debug.print("Exit readArgList\n", .{});
+    }
     return;
 }
 

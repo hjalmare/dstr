@@ -395,6 +395,13 @@ test "Function nested 2" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "function.nested.3" {
+    const src = "[ one two ] if(one.startsWith('b') one.first(2) one).upper()";
+    const input = "aaaa bbbb";
+    const expectedOutput = [_][]const u8{"AAAA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Function in string" {
     const src = "[ one two ] 'a{one.upper()}a' two";
     const input = "aa bb";

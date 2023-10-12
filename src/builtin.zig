@@ -56,6 +56,15 @@ pub const AstNode = union(AstNodeType) {
     fun: AstFun,
     chars: []const u8,
     int: i64,
+
+    pub fn print(self: AstNode, prefix: *ArrayList(u8)) !void {
+        switch (self) {
+            .ref => std.debug.print("{s}(ref {s})", .{ prefix.items, self.ref }),
+            .chars => std.debug.print("{s}(chars '{s}')", .{ prefix.items, self.chars }),
+            .int => std.debug.print("{s}(int {any})", .{ prefix.items, self.int }),
+            .fun => try self.fun.print(prefix),
+        }
+    }
 };
 
 pub const FunType = enum {};
@@ -69,6 +78,17 @@ pub const AstFun = struct {
             std.debug.print("Failed to execute '{s}' expected {i} arguments but got {i}", .{ self.name, expected, self.args.len });
             return DestructError.invocation_error;
         }
+    }
+
+    pub fn print(self: AstFun, prefix: *ArrayList(u8)) DestructError!void {
+        std.debug.print("{s}(fun {s}\n", .{ prefix.items, self.name });
+        try prefix.append('\t');
+        for (self.args) |arg| {
+            try arg.print(prefix);
+            std.debug.print("\n", .{});
+        }
+        _ = prefix.pop();
+        std.debug.print("{s})", .{prefix.items});
     }
 };
 
@@ -345,7 +365,11 @@ fn builtinEq(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
 fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
-    return PrimitiveValue{ .bool = std.mem.startsWith(u8, arg1, arg2) };
+    var ret = std.mem.startsWith(u8, arg1, arg2);
+    if (debug) {
+        std.debug.print("startsWith {s} {s} {any}\n", .{ arg1, arg2, ret });
+    }
+    return PrimitiveValue{ .bool = ret };
 }
 
 fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
@@ -355,10 +379,10 @@ fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const
 }
 
 fn builtinIf(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
-    var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
+    var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
 
     if (debug) {
-        std.debug.print("builtinIf \n", .{});
+        std.debug.print("builtinIf {any} \n", .{arg1.toBool()});
     }
 
     if (arg1.toBool()) {
