@@ -57,6 +57,10 @@ const StringReader = struct {
         return self.src[self.offset - 1];
     }
 
+    pub fn eof(self: StringReader) bool {
+        return self.offset >= self.src.len;
+    }
+
     pub fn select(self: *StringReader) void {
         self.selectStart = self.offset - 1;
         if (debugReader) {
@@ -149,6 +153,17 @@ const StringReader = struct {
         ln[ln.len - 1] = '^';
 
         std.debug.print("{s}\n{s}\nUnexpected character: '{c}'\n", .{ .src = self.src, .pt = ln, .char = self.peek() });
+    }
+    pub fn printUnexpectedtEofError(self: *StringReader, allocator: Allocator) !void {
+        var ln = try allocator.alloc(u8, self.offset);
+        defer allocator.free(ln);
+
+        for (ln, 0..) |_, i| {
+            ln[i] = '-';
+        }
+        ln[ln.len - 1] = '^';
+
+        std.debug.print("{s}\n{s}\nUnexpected end of string\n", .{ .src = self.src, .pt = ln });
     }
 };
 
@@ -488,7 +503,12 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         //Dirty hack to handle when the last arg was a str or fun
         switch (arg) {
             AstNodeType.fun, AstNodeType.chars => _ = it.next(),
-            else => {},
+            else => {
+                if (it.eof()) {
+                    try it.printUnexpectedtEofError(allocator);
+                    return DestructError.missing_input;
+                }
+            },
         }
         it.skipWhitespace();
     }
