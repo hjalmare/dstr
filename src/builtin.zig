@@ -92,14 +92,14 @@ pub const AstFun = struct {
     }
 };
 
-pub const StreamStepType = enum { collect, systemOut, exec, filter, eval };
+pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
     exec: ExecStep,
     filter: FilterStep,
     eval: EvalStep,
-
+    skip: SkipStep,
     pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
         switch (self.*) {
             .collect => try self.collect.accept(line),
@@ -107,6 +107,7 @@ pub const StreamStep = union(StreamStepType) {
             .exec => try self.exec.accept(line),
             .filter => try self.filter.accept(line_allocator, line),
             .eval => try self.eval.accept(line_allocator, line),
+            .skip => try self.skip.accept(line_allocator, line),
         }
     }
 };
@@ -126,6 +127,19 @@ pub const FilterStep = struct {
         }
 
         try self.next.accept(line_allocator, line);
+    }
+};
+
+pub const SkipStep = struct {
+    next: *StreamStep,
+    skipCount: i64,
+
+    pub fn accept(self: *SkipStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+        if (self.skipCount > 0) {
+            self.skipCount -= 1;
+        } else {
+            try self.next.accept(line_allocator, line);
+        }
     }
 };
 
@@ -373,7 +387,7 @@ fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]con
 }
 
 fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
-    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
 }

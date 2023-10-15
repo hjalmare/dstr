@@ -185,6 +185,7 @@ const InputParserResult = struct {
     refs: []const builtin.RefMap,
 };
 
+//TODO: Only works with single quotes atm
 //TODO: Dirty as hell but it mostly works, cleanup later :D
 const pssState = enum { chars, ref };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
@@ -408,15 +409,28 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
             return DestructError.unexpected_char;
         } else if (c == '(') {
             //Fun
-            var funName = it.selection();
+            var stepName = it.selection();
             var argList = ArrayList(AstNode).init(allocator);
             try readArgList(allocator, it, &argList);
             if (debug) {
-                std.debug.print("\tProducing StreamStep '{s}'\n", .{funName});
+                std.debug.print("\tProducing StreamStep '{s}'\n", .{stepName});
             }
-            //var ret = AstNode{ .fun = AstFun{ .name = funName, .args = argList.items } };
+
+            //TODO: Break this out like builtins
             var ret = try allocator.create(builtin.StreamStep);
-            ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
+            if (std.mem.eql(u8, stepName, "filter")) {
+                ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
+            } else if (std.mem.eql(u8, stepName, "skip")) {
+                if ((argList.items.len == 1) and (argList.items[0] == builtin.AstNodeType.int)) {
+                    ret.* = .{ .skip = builtin.SkipStep{ .next = parentStream, .skipCount = argList.items[0].int } };
+                } else {
+                    std.debug.print("Skip step requires one integer param\n", .{});
+                    return DestructError.unexpected_char;
+                }
+            } else {
+                std.debug.print("Unknown stream step: {s}\n", .{stepName});
+                return DestructError.unexpected_char;
+            }
 
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
@@ -441,7 +455,10 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
     }
 
     return DestructError.unexpected_char;
-} //New expression parser
+}
+
+//New expression parser
+// =======================================================================
 //Holy off by one error batman, tokenizing would really help :D
 
 pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *StringReader) !AstNode {
