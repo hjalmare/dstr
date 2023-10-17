@@ -402,6 +402,13 @@ test "function.nested.3" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "function.chaining.5" {
+    const src = "[ one two ] one.upper().first(1)";
+    const input = "aaaa bbbb";
+    const expectedOutput = [_][]const u8{"A"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Function in string" {
     const src = "[ one two ] 'a{one.upper()}a' two";
     const input = "aa bb";
