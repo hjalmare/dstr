@@ -502,7 +502,7 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         try args.append(arg);
         //Dirty hack to handle when the last arg was a str or fun
         switch (arg) {
-            AstNodeType.fun, AstNodeType.chars => _ = it.next(),
+            AstNodeType.fun, AstNodeType.chars, AstNodeType.int => _ = it.next(),
             else => {
                 if (it.eof()) {
                     try it.printUnexpectedtEofError(allocator);
@@ -672,6 +672,7 @@ pub fn readInteger(it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("Producing integer: {}\n", .{intVal});
     }
+    it.rewind();
     return AstNode{ .int = intVal };
 }
 
