@@ -346,10 +346,17 @@ test "stream.filter.match" {
 //=========================================================================
 // Functions
 
-test "Function upper" {
+test "function.upper.1" {
     const src = "[ one two ] one.upper() two";
     const input = "aa bb";
     const expectedOutput = [_][]const u8{ "AA", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "function.upper.2" {
+    const src = "[ one two ] one upper(two)";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "aa", "BB" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 
