@@ -346,10 +346,17 @@ test "stream.filter.match" {
 //=========================================================================
 // Functions
 
-test "Function upper" {
+test "function.upper.1" {
     const src = "[ one two ] one.upper() two";
     const input = "aa bb";
     const expectedOutput = [_][]const u8{ "AA", "bb" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "function.upper.2" {
+    const src = "[ one two ] one upper(two)";
+    const input = "aa bb";
+    const expectedOutput = [_][]const u8{ "aa", "BB" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 
@@ -399,6 +406,13 @@ test "function.nested.3" {
     const src = "[ one two ] if(one.startsWith('b') one.first(2) one).upper()";
     const input = "aaaa bbbb";
     const expectedOutput = [_][]const u8{"AAAA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "function.chaining.5" {
+    const src = "[ one two ] one.upper().first(1)";
+    const input = "aaaa bbbb";
+    const expectedOutput = [_][]const u8{"A"};
     try quickTest(src, input, expectedOutput[0..]);
 }
 
