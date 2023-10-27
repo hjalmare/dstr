@@ -10,7 +10,7 @@ dstr reads lines of input from system in, splits it and then binds it onto symbo
 Similar to cut and awk.
 
 ```
-dstr "[destructoring] output" executable?
+dstr "destructoring output" executable?
 ```
 
 ### Destructoring
@@ -18,14 +18,14 @@ dstr splits input from system in, and uses a destructoring expression to bind
 each part of the split input to a symbol name. 
 
 There are two kinds of destructoring in dstr, _template destructoring_ which can be used on most text 
-and _positional destructoring_ which can be used on space separated columns (and other csv formats in the future)
+and _positional destructoring_ which can be used on space separated columns (and other csv formats in the future).
 
 #### Template destructoring
 Lets say you have a bunch of access logs that look like the following 
-`2022-05-04T11:13:39.686Z info: Received a GET request for /mypage` 
+```2022-05-04T11:13:39.686Z info: Received a GET request for /mypage``` 
 and you want to rewrite it to another format. To do that you need to extract the different parts 
 and then put them back in a different order.
-Using template destructuring you can replace the parts you want to extract
+Using template destructuring (written inside single quotes `' '`) you can replace the parts you want to extract
 with `{symbol}` and the varying parts you do not care about with `{_}`.
 
 
@@ -35,6 +35,19 @@ $cat log.log | dstr "'{ts} {_}: Received a {m} request for {url}' '{m} request f
 ```
 
 #### Positional destructoring
+You have been given a db dump of a users table with the folowing space separated columns: 
+id, email, age, pokemons, contact. 
+And you need to extract the email and contact fields to feed into some other script. 
+Positional destructoring is intended for this usecase and are written inside square brackets `[ ]`. 
+
+```
+$cat dump.csv
+> 543345 asdf@asdf.com 43 5 true
+$cat dump.csv | dstr "[_ em ... c] em c"
+> asdf@asdf.com true
+```
+
+
 `[a b]` &ensp; binds the first and second parts of the input to `a` and `b`.
 
 Underscore `_` can be used to skip input.
