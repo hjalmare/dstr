@@ -3,11 +3,11 @@
 This project is created for me to learn and experiment with Zig, and to try out a few things.
 
 The goals/philosophy of the project are the following:
-* Be fast, be respectful of the computers resources and do not waste them
+* Be respectful of the computers resources and do not waste them
 * No dependencies outside Zigs standard library
 * Just code it, focus on just getting the code out. Do not get stuck on naming, structure etc.
 * Rely primarily on black box testing.
-* Duplicated code is OK.
+* Keep code compact, and do not use unessesary indirection
 * I do what i want, this project is for fun
 
 # Some takeaways so far

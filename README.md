@@ -6,7 +6,7 @@ Because cut is hard.
 [Releases](https://github.com/hjalmare/dstr/releases)
 
 ## Usage
-dstr reads input from system in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
+dstr reads lines of input from system in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
 Similar to cut and awk.
 
 ```
@@ -14,9 +14,27 @@ dstr "[destructoring] output" executable?
 ```
 
 ### Destructoring
-dstr splits its input from system in, and uses the destructoring expression to bind
+dstr splits input from system in, and uses a destructoring expression to bind
 each part of the split input to a symbol name. 
 
+There are two kinds of destructoring in dstr, _template destructoring_ which can be used on most text 
+and _positional destructoring_ which can be used on space separated columns (and other csv formats in the future)
+
+#### Template destructoring
+Lets say you have a bunch of access logs that look like the following 
+`2022-05-04T11:13:39.686Z info: Received a GET request for /mypage` 
+and you want to rewrite it to another format. To do that you need to extract the different parts 
+and then put them back in a different order.
+Using template destructuring you can replace the parts you want to extract
+with `{symbol}` and the varying parts you do not care about with `{_}`.
+
+
+```
+$cat log.log | dstr "'{ts} {_}: Received a {m} request for {url}' '{m} request for {url} at {ts}'"  
+> GET request for /home at 2022-12-08T11:10:35.686Z
+```
+
+#### Positional destructoring
 `[a b]` &ensp; binds the first and second parts of the input to `a` and `b`.
 
 Underscore `_` can be used to skip input.
@@ -58,11 +76,13 @@ There is currently a small selection of functions implemented.
 | `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                             |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                      |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                             |
-| `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if  `val1`  ends with the value of  `val2`                            |
+| `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                              |
+| `contains(val1 val2)`   | `val1.contains(val2)`   | Returns true if `val1` contains the value of  `val2`                               |
+| `gt(val1 val2)`         | `val1.gt(val2)`         | Returns true if `val1` is greater than `val2`                                      |
+| `lt(val1 val2)`         | `val1.lt(val2)`         | Returns true if `val1` is less than `val2`                                         |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')` |
 
 ## Examples
-
 
 A little bit of everything
 ```
@@ -118,11 +138,15 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 
 
 ## TODO
-* Template based input parsing `'info: {msg} responseTime:{resptime}'`
 * Nice errors and error checking
-* Faster ref resolution
 * csv parsing
 * use files as input
 * support more escape characters like \n and \t
 * compiletime typecheck
 * faster stdio
+* escapes in template destructoring
+* toggleable strict mode
+* arg checks on all builtins
+* Jit
+* Regex support
+* More builtins like trimming

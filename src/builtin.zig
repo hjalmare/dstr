@@ -242,6 +242,9 @@ const builtins = [_]Builtin{
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
     Builtin{ .name = "endsWith", .impl = builtinEndsWith },
+    Builtin{ .name = "contains", .impl = builtinContains },
+    Builtin{ .name = "gt", .impl = builtinGt },
+    Builtin{ .name = "lt", .impl = builtinLt },
     Builtin{ .name = "if", .impl = builtinIf },
 };
 
@@ -390,6 +393,32 @@ fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
+}
+
+fn builtinContains(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    return PrimitiveValue{ .bool = std.mem.indexOf(u8, arg1, arg2) != null };
+}
+
+fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
+    var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
+
+    var int1 = try arg1.toInt();
+    var int2 = try arg2.toInt();
+
+    return PrimitiveValue{ .bool = int1 > int2 };
+}
+
+fn builtinLt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
+    var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
+
+    var int1 = try arg1.toInt();
+    var int2 = try arg2.toInt();
+
+    return PrimitiveValue{ .bool = int1 < int2 };
 }
 
 fn builtinIf(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
