@@ -405,20 +405,38 @@ fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
     var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
-    var int1 = try arg1.toInt();
-    var int2 = try arg2.toInt();
-
-    return PrimitiveValue{ .bool = int1 > int2 };
+    if ((arg1 == PrimitiveValueType.int) or (arg2 == PrimitiveValueType.int)) {
+        var int1 = arg1.toInt() catch null;
+        var int2 = arg2.toInt() catch null;
+        if (int1) |in1| {
+            if (int2) |in2| {
+                return PrimitiveValue{ .bool = in1 > in2 };
+            }
+        }
+    }
+    var char1 = try arg1.toChars(allocator);
+    var char2 = try arg2.toChars(allocator);
+    var cmp = std.mem.order(u8, char1, char2);
+    return PrimitiveValue{ .bool = cmp == std.math.Order.gt };
 }
 
 fn builtinLt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
-    var int1 = try arg1.toInt();
-    var int2 = try arg2.toInt();
-
-    return PrimitiveValue{ .bool = int1 < int2 };
+    if ((arg1 == PrimitiveValueType.int) or (arg2 == PrimitiveValueType.int)) {
+        var int1 = arg1.toInt() catch null;
+        var int2 = arg2.toInt() catch null;
+        if (int1) |in1| {
+            if (int2) |in2| {
+                return PrimitiveValue{ .bool = in1 < in2 };
+            }
+        }
+    }
+    var char1 = try arg1.toChars(allocator);
+    var char2 = try arg2.toChars(allocator);
+    var cmp = std.mem.order(u8, char1, char2);
+    return PrimitiveValue{ .bool = cmp == std.math.Order.lt };
 }
 
 fn builtinIf(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
