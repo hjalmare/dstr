@@ -16,6 +16,7 @@ const compile = parser.compile;
 //Set to true for debug output
 const debug = false;
 const VERSION = @embedFile("VERSION.txt");
+const HELP = @embedFile("HELP.txt");
 
 fn isWhitespace(c: u8) bool {
     return (c == ' ') or (c == '\t');
@@ -128,24 +129,7 @@ pub fn main() !void {
 
     if ((args.len < 2) or (args.len > 3)) {
         std.debug.print("dstr version: {s}\n", .{VERSION});
-
-        std.debug.print("Please invoke using: \n", .{});
-        std.debug.print("\t./dstr [expression]\n", .{});
-        std.debug.print("\t./dstr [expression] [executable]\n", .{});
-        std.debug.print("\nExample:\n", .{});
-        std.debug.print("\tdstr \"[a ... b]  a b \"\n", .{});
-        std.debug.print("\tdstr \"[a ... b]  a b \" echo\n", .{});
-
-        std.debug.print("\nReference:\n", .{});
-        std.debug.print("\t\"[\" binding+ \"]\" output+\n", .{});
-        std.debug.print("\tbinding       = varname | elipsis | ignore\n", .{});
-        std.debug.print("\tvarname       = \\w+\n", .{});
-        std.debug.print("\tellipsis      = \"...\"\n", .{});
-        std.debug.print("\tignore        = \"_\"\n", .{});
-        std.debug.print("\toutput        = ref | string\n", .{});
-        std.debug.print("\tref           = \\w+\n", .{});
-        std.debug.print("\tstring        = \"'\" {{text | interpolation}}* \"'\"\n", .{});
-        std.debug.print("\tinterpolation = {{ref}}\n", .{});
+        std.debug.print("{s}\n", .{HELP});
 
         std.os.exit(1);
     }

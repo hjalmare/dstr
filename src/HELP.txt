@@ -1,0 +1,18 @@
+Usage: dstr "destructoring output" [executable]
+Reads lines from sytem in and break out substrings.
+Example 1: dstr "[a _ c] c a.upper()"
+Example 2: dstr "'foo {_} bar {a}' a.first(2)"
+
+Built in functions:
+first(val num)
+rpad(val num)
+lpad(val num)
+upper(val)
+
+eq(val1 val2)
+startsWith(val1 val2)
+endsWith(val1 val2)
+contains(val1 val2)
+gt(val1 val2)
+lt(val1 val2)
+if(pred trueExp falseExp)
