@@ -150,14 +150,31 @@ pub fn main() !void {
 
     while (input) |in| {
         const splatInput = switch (pgm.input) {
-            .positional => try splitInput(lineAllocator, in),
-            .segments => try splitSegments(allocator, pgm.input.segments, in),
+            .positional => splitInput(lineAllocator, in),
+            .segments => splitSegments(allocator, pgm.input.segments, in),
+        } catch |err| {
+            if (err == builtin.DestructError.missing_input) {
+                if (debug) {
+                    std.debug.print("Missing input!\n", .{});
+                }
+                _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
+                input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
+                continue;
+            } else {
+                return err;
+            }
         };
 
-        try pgm.stream.accept(lineAllocator, splatInput);
-        //Reset allocator and read a new line of input
+        pgm.stream.accept(lineAllocator, splatInput) catch |err| {
+            if (err == builtin.DestructError.missing_input) {
+                if (debug) {
+                    std.debug.print("Missing input!\n", .{});
+                }
+            } else {
+                return err;
+            }
+        };
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
-
         input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
     }
 }
