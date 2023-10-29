@@ -332,6 +332,13 @@ fn builtinFirst(allocator: Allocator, refMap: []const RefMap, line: [][]const u8
 }
 
 fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if ((fun.args.len != 2) and (fun.args.len != 3)) {
+        std.debug.print(
+            "Failed to execute '{s}', expects 2 or 3 arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
     var arg1 = fun.args[0];
     var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
