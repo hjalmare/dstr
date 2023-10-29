@@ -303,14 +303,17 @@ pub fn resolveBuiltin(name: []const u8) DestructError!BuiltinFn {
     return DestructError.unknown_function;
 }
 
-fn builtinUpper(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
-    if (fun.args.len != 1) {
+fn assertArgsEq(name: []const u8, expected: usize, actual: usize) !void {
+    if (expected != actual) {
         std.debug.print(
-            "Failed to execute 'upper', expects 0 arguments but got {d}\n",
-            .{fun.args.len - 1},
+            "Failed to execute '{s}', expects {d} arguments but got {d}\n",
+            .{ name, expected, actual },
         );
         return DestructError.exec_arg_error;
     }
+}
+fn builtinUpper(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 1, fun.args.len);
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
 
     var refBuf = try allocator.alloc(u8, arg1.len);
@@ -319,6 +322,7 @@ fn builtinUpper(allocator: Allocator, refMap: []const RefMap, line: [][]const u8
 }
 
 fn builtinFirst(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = fun.args[0];
     var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
@@ -360,6 +364,7 @@ fn primBool(b: bool) PrimitiveValue {
 }
 
 fn builtinEq(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     if (debug) {
         std.debug.print("builtinEq \n", .{});
     }
@@ -380,6 +385,7 @@ fn builtinEq(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
 }
 
 fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     var ret = std.mem.startsWith(u8, arg1, arg2);
@@ -390,18 +396,21 @@ fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]con
 }
 
 fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
 }
 
 fn builtinContains(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.indexOf(u8, arg1, arg2) != null };
 }
 
 fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
@@ -421,6 +430,7 @@ fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
 }
 
 fn builtinLt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 2, fun.args.len);
     var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
@@ -440,6 +450,7 @@ fn builtinLt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
 }
 
 fn builtinIf(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 3, fun.args.len);
     var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
 
     if (debug) {
