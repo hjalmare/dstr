@@ -25,6 +25,7 @@ Lets say you have a bunch of access logs that look like the following
 
 ```
 2022-05-04T11:13:39.686Z info: Received a GET request for /mypage
+2022-05-04T11:13:40.286Z warn: Received a POST request for /mypage
 ``` 
 
 and you want to rewrite it to another format. To do that you need to extract the different parts 
@@ -34,8 +35,9 @@ with `{symbol}` and the varying parts you do not care about with `{_}`.
 
 
 ```
-$cat log.log | dstr "'{ts} {_}: Received a {m} request for {url}' '{m} request for {url} at {ts}'"  
-> GET request for /home at 2022-12-08T11:10:35.686Z
+$ cat log.log | dstr "'{ts} {_}: Received a {m} request for {url}' '{m} request for {url} at {ts}'"  
+> GET request for /mypage at 2022-05-04T11:13:39.686Z
+> POST request for /mypage at 2022-05-04T11:13:40.286Z
 ```
 
 #### Positional destructoring
@@ -45,7 +47,7 @@ And you need to extract the email and contact fields to feed into some other scr
 Positional destructoring is intended for this usecase and are written inside square brackets `[ ]`. 
 
 ```
-$cat dump.csv
+$ cat dump.csv
 > 543345 asdf@asdf.com 43 5 true
 $cat dump.csv | dstr "[_ em ... c] em c"
 > asdf@asdf.com true
@@ -116,19 +118,19 @@ $ ls -ld * | dstr "[... f] if(f.endsWith('.sh') 'Shell: {f}' 'File: {f}').upper(
 
 Print the second last item
 ```
-$echo AA BB CC DD | dstr "[... c _] c"
+$ echo AA BB CC DD | dstr "[... c _] c"
 > CC
 ```
 
 Use string interpolation to join inputs
 ```
-$echo AA BB CC DD | dstr "[a ... d] '{a}_{d}'"
+$ echo AA BB CC DD | dstr "[a ... d] '{a}_{d}'"
 > AA_DD
 ```
 
 Extract filename and size from ls
 ```
-$ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size:' si"
+$ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size:' si"
 > build.zig size: 481
 > LICENSE size: 1073
 > README.md size: 217
