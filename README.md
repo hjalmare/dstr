@@ -48,9 +48,14 @@ Positional destructoring is intended for this usecase and are written inside squ
 
 ```
 $ cat dump.csv
-> 543345 asdf@asdf.com 43 5 true
+> 543345 asdf@asdf.com 43 2 true
+> 543346 qwerty@asdf.com 1 1 false
+> 543347 foo@bar.com 38 19 true
+
 $cat dump.csv | dstr "[_ em ... c] em c"
 > asdf@asdf.com true
+> qwerty@asdf.com false
+> foo@bar.com true
 ```
 
 
