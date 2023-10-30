@@ -15,7 +15,7 @@ dstr "destructoring output" executable?
 
 ### Destructoring
 dstr splits input from system in, and uses a destructoring expression to bind
-each part of the split input to a symbol name. 
+parts of the split input to a symbol name. 
 
 There are two kinds of destructoring in dstr, _template destructoring_ which can be used on most text 
 and _positional destructoring_ which can be used on space separated columns (and other csv formats in the future).
