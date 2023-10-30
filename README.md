@@ -23,7 +23,9 @@ and _positional destructoring_ which can be used on space separated columns (and
 #### Template destructoring
 Lets say you have a bunch of access logs that look like the following 
 
-```2022-05-04T11:13:39.686Z info: Received a GET request for /mypage``` 
+```
+2022-05-04T11:13:39.686Z info: Received a GET request for /mypage
+``` 
 
 and you want to rewrite it to another format. To do that you need to extract the different parts 
 and then put them back in a different order.
