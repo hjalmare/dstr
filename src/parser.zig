@@ -427,6 +427,13 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
                     std.debug.print("Skip step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
+            } else if (std.mem.eql(u8, stepName, "first")) {
+                if ((argList.items.len == 1) and (argList.items[0] == builtin.AstNodeType.int)) {
+                    ret.* = .{ .first = builtin.FirstStep{ .next = parentStream, .count = argList.items[0].int } };
+                } else {
+                    std.debug.print("First step requires one integer param\n", .{});
+                    return DestructError.unexpected_char;
+                }
             } else {
                 std.debug.print("Unknown stream step: {s}\n", .{stepName});
                 return DestructError.unexpected_char;

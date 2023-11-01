@@ -20,6 +20,7 @@ pub const DestructError = error{
     Overflow,
     undefined,
 };
+
 pub const PrimitiveValueType = enum { chars, int, bool };
 pub const PrimitiveValue = union(PrimitiveValueType) {
     chars: []const u8,
@@ -92,7 +93,7 @@ pub const AstFun = struct {
     }
 };
 
-pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip };
+pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip, first };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
@@ -100,15 +101,17 @@ pub const StreamStep = union(StreamStepType) {
     filter: FilterStep,
     eval: EvalStep,
     skip: SkipStep,
-    pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
-        switch (self.*) {
+    first: FirstStep,
+    pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+        return switch (self.*) {
             .collect => try self.collect.accept(line),
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
             .filter => try self.filter.accept(line_allocator, line),
             .eval => try self.eval.accept(line_allocator, line),
             .skip => try self.skip.accept(line_allocator, line),
-        }
+            .first => try self.first.accept(line_allocator, line),
+        };
     }
 };
 
@@ -117,16 +120,16 @@ pub const FilterStep = struct {
     predicates: []const AstNode,
     refMap: []const RefMap,
 
-    pub fn accept(self: FilterStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+    pub fn accept(self: FilterStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
         for (self.predicates) |pred| {
             var p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
 
             if (!p) {
-                return;
+                return true;
             }
         }
 
-        try self.next.accept(line_allocator, line);
+        return try self.next.accept(line_allocator, line);
     }
 };
 
@@ -134,11 +137,26 @@ pub const SkipStep = struct {
     next: *StreamStep,
     skipCount: i64,
 
-    pub fn accept(self: *SkipStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+    pub fn accept(self: *SkipStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
         if (self.skipCount > 0) {
             self.skipCount -= 1;
+            return true;
         } else {
-            try self.next.accept(line_allocator, line);
+            return try self.next.accept(line_allocator, line);
+        }
+    }
+};
+
+pub const FirstStep = struct {
+    next: *StreamStep,
+    count: i64,
+
+    pub fn accept(self: *FirstStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+        if (self.count > 0) {
+            self.count -= 1;
+            return try self.next.accept(line_allocator, line);
+        } else {
+            return false;
         }
     }
 };
@@ -148,7 +166,7 @@ pub const EvalStep = struct {
     expressions: []const AstNode,
     refMap: []const RefMap,
 
-    pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!void {
+    pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
         var ret = ArrayList([]const u8).init(line_allocator);
         for (self.expressions) |pred| {
             var p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
@@ -156,14 +174,14 @@ pub const EvalStep = struct {
             try ret.append(p);
         }
 
-        try self.next.accept(line_allocator, ret.items);
+        return try self.next.accept(line_allocator, ret.items);
     }
 };
 
 pub const SystemOutStep = struct {
     writer: std.fs.File,
 
-    pub fn accept(self: SystemOutStep, line: [][]const u8) DestructError!void {
+    pub fn accept(self: SystemOutStep, line: [][]const u8) DestructError!bool {
         for (line, 0..) |o, i| {
             if (i != 0) self.writer.writer().writeAll(" ") catch {
                 return DestructError.undefined;
@@ -176,6 +194,7 @@ pub const SystemOutStep = struct {
         self.writer.writer().writeAll("\n") catch {
             return DestructError.undefined;
         };
+        return true;
     }
 };
 
@@ -183,7 +202,7 @@ pub const ExecStep = struct {
     allocator: Allocator,
     cmd: []const u8,
 
-    pub fn accept(self: ExecStep, line: [][]const u8) !void {
+    pub fn accept(self: ExecStep, line: [][]const u8) !bool {
         var cmdLine = ArrayList([]const u8).init(self.allocator);
         try cmdLine.append(self.cmd);
         try cmdLine.appendSlice(line);
@@ -192,14 +211,16 @@ pub const ExecStep = struct {
             std.debug.print("Failed to execute '{s}'\n", .{self.cmd});
             std.os.exit(1);
         };
+        return true;
     }
 };
 
 pub const CollectStep = struct {
     items: ArrayList([][]const u8),
 
-    pub fn accept(self: *CollectStep, line: [][]const u8) !void {
+    pub fn accept(self: *CollectStep, line: [][]const u8) !bool {
         try self.items.append(line);
+        return true;
     }
 };
 

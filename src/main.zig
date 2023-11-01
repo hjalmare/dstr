@@ -149,6 +149,7 @@ pub fn main() !void {
     };
 
     while (input) |in| {
+        //TODO: Get rid of repetative code here
         const splatInput = switch (pgm.input) {
             .positional => splitInput(lineAllocator, in),
             .segments => splitSegments(allocator, pgm.input.segments, in),
@@ -165,16 +166,22 @@ pub fn main() !void {
             }
         };
 
-        pgm.stream.accept(lineAllocator, splatInput) catch |err| {
+        const cont = pgm.stream.accept(lineAllocator, splatInput) catch |err| {
             if (err == builtin.DestructError.missing_input) {
                 if (debug) {
                     std.debug.print("Missing input!\n", .{});
                 }
+                _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
+                input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
+                continue;
             } else {
                 return err;
             }
         };
         _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
+        if (!cont) {
+            break;
+        }
         input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
     }
 }
