@@ -649,13 +649,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
                 return DestructError.unexpected_char;
             };
 
-            var n = it.next();
-            if (n == null or n == qtType) {
-                //if we reach the end of string just do an early exit
-                return AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
-            } else {
-                it.select();
-            }
+            it.selectNext();
         } else if (c == '\\') {
             //deal with escape here
             try fragments.append(AstNode{ .chars = it.selection() });

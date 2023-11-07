@@ -298,17 +298,24 @@ test "Escaping characters3" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
-test "String interpolation" {
+test "string.interpolation.oneone" {
     const src = "[ one _  _ ] '{one}-{one}'";
     const input = "aa bb cc";
     const expectedOutput = [_][]const u8{"aa-aa"};
     try quickTest(src, input, expectedOutput[0..]);
 }
 
-test "String interpolation last" {
+test "string.interpolation.last" {
     const src = "[ one ] '{one}' one";
     const input = "aa";
     const expectedOutput = [_][]const u8{ "aa", "aa" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "string.interpolation.escapeqt" {
+    const src = "[ one ] '{one}\\'' one";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{ "aa'", "aa" };
     try quickTest(src, input, expectedOutput[0..]);
 }
 
@@ -541,6 +548,7 @@ test "comp3 test" {
 }
 
 fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !void {
+    std.debug.print("\n", .{});
     var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allocator = gpa.allocator();
     defer gpa.deinit();
