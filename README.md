@@ -162,10 +162,9 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 
 
 ## TODO
-* Nice errors and error checking
+* Nicer errors and error checking
 * csv parsing
 * use files as input
-* support more escape characters like \n and \t
 * compiletime typecheck
 * faster stdio
 * escapes in template destructoring
@@ -173,4 +172,6 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * arg checks on all builtins
 * Jit
 * Regex support
-* More builtins like trimming
+* More string builtins like trimming
+* Boolean ops, and, or, not
+
