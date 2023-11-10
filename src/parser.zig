@@ -522,6 +522,9 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         var arg = try readAstNode(allocator, it);
 
         try args.append(arg);
+        if (it.eof()) {
+            return DestructError.unexpected_char;
+        }
         _ = it.next();
         it.skipWhitespace();
     }

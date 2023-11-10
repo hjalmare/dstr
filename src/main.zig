@@ -478,6 +478,11 @@ test "Fail on underscore ref" {
     try failTest(src, input, DestructError.unexpected_char);
 }
 
+test "Fail on missing paren in stream" {
+    const src = "[ one _ two ].filter(eq(one.upper() 'AA') one";
+    try failCompile(src, DestructError.unexpected_char);
+}
+
 fn soutStream() builtin.StreamStep {
     const stdout = std.io.getStdOut();
     return builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } };
@@ -510,7 +515,10 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
 
     var streamStep: builtin.StreamStep = soutStream();
     _ = compile(allocator, src, &streamStep) catch |err| {
-        try expect(err == expected_error);
+        expect(err == expected_error) catch |e| {
+            std.debug.print("Expected: {any} but got: {any}\n", .{ expected_error, err });
+            return e;
+        };
         return;
     };
 
