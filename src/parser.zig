@@ -523,6 +523,7 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
 
         try args.append(arg);
         if (it.eof()) {
+            //When we reach end of program before seeing the closing paren
             return DestructError.unexpected_char;
         }
         _ = it.next();
