@@ -679,6 +679,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
                 }
             }
             it.select();
+            it.rewind();
         }
     }
 

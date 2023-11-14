@@ -319,6 +319,12 @@ test "string.interpolation.escapeqt" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "string.interpolation.escapeleadingcurly" {
+    const src = "[a] '\\{{a}'";
+    const input = "aa";
+    const expectedOutput = [_][]const u8{"{aa"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
 test "String nested interpolation" {
     const src = "[ one ] upper('{one}')";
     const input = "aa";
