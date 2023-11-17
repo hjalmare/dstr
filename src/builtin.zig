@@ -267,6 +267,9 @@ const builtins = [_]Builtin{
     Builtin{ .name = "gt", .impl = builtinGt },
     Builtin{ .name = "lt", .impl = builtinLt },
     Builtin{ .name = "if", .impl = builtinIf },
+    Builtin{ .name = "not", .impl = builtinNot },
+    Builtin{ .name = "and", .impl = builtinAnd },
+    Builtin{ .name = "or", .impl = builtinOr },
 };
 
 // Executor enginge, recursively resolve values
@@ -490,4 +493,31 @@ fn builtinIf(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
     } else {
         return resolvePrimitiveValue(allocator, refMap, line, fun.args[2]);
     }
+}
+
+fn builtinNot(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 1, fun.args.len);
+    var arg1 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[0]);
+
+    return PrimitiveValue{ .bool = !arg1.toBool() };
+}
+
+fn builtinAnd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    for (fun.args) |arg| {
+        var v = try resolvePrimitiveValue(allocator, refMap, line, arg);
+        if (!v.toBool()) {
+            return PrimitiveValue{ .bool = false };
+        }
+    }
+    return PrimitiveValue{ .bool = true };
+}
+
+fn builtinOr(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    for (fun.args) |arg| {
+        var v = try resolvePrimitiveValue(allocator, refMap, line, arg);
+        if (v.toBool()) {
+            return PrimitiveValue{ .bool = true };
+        }
+    }
+    return PrimitiveValue{ .bool = false };
 }
