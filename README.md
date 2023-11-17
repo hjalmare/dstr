@@ -92,19 +92,22 @@ Or dot syntax can be used like this: `val.first(3)` here val is inserted as the 
 
 There is currently a small selection of functions implemented.
 
-| Function                | Dot syntax              | Description                                                                        |
-|-------------------------|-------------------------|------------------------------------------------------------------------------------|
-| `first(val num)`        | `val.first(num)`        | Takes the first `num` characters from `val`                                        |
-| `rpad(val num)`         | `val.rpad(num)`         | Pads the right side of `val` with spaces so that it is `num` characters long       |
-| `rpad(val num ptrn)`    | `val.rpad(num ptrn)`    | Pads the right side of `val` with `ptrn` so that it is `num` characters long       |
-| `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                             |
-| `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                      |
-| `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                             |
-| `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                              |
-| `contains(val1 val2)`   | `val1.contains(val2)`   | Returns true if `val1` contains the value of  `val2`                               |
-| `gt(val1 val2)`         | `val1.gt(val2)`         | Returns true if `val1` is greater than `val2`                                      |
-| `lt(val1 val2)`         | `val1.lt(val2)`         | Returns true if `val1` is less than `val2`                                         |
-| `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')` |
+| Function                | Dot syntax              | Description                                                                           |
+|-------------------------|-------------------------|---------------------------------------------------------------------------------------|
+| `first(val num)`        | `val.first(num)`        | Takes the first `num` characters from `val`                                           |
+| `rpad(val num)`         | `val.rpad(num)`         | Pads the right side of `val` with spaces so that it is `num` characters long          |
+| `rpad(val num ptrn)`    | `val.rpad(num ptrn)`    | Pads the right side of `val` with `ptrn` so that it is `num` characters long          |
+| `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                                |
+| `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                         |
+| `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                                |
+| `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                                 |
+| `contains(val1 val2)`   | `val1.contains(val2)`   | Returns true if `val1` contains the value of  `val2`                                  |
+| `gt(val1 val2)`         | `val1.gt(val2)`         | Returns true if `val1` is greater than `val2`                                         |
+| `lt(val1 val2)`         | `val1.lt(val2)`         | Returns true if `val1` is less than `val2`                                            |
+| `not(val1)`             | `val1.not()`            | Inverts the value of `val1`                                                           |
+| `and(val1 val2)`        | `val1.and(val2)`        | Boolean and, returns true if all arguments are true. Can take any number of arguments |
+| `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
+| `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
 
 ## Examples
 
