@@ -259,6 +259,7 @@ const builtins = [_]Builtin{
     Builtin{ .name = "upper", .impl = builtinUpper },
     Builtin{ .name = "first", .impl = builtinFirst },
     Builtin{ .name = "rpad", .impl = builtinRPad },
+    Builtin{ .name = "lpad", .impl = builtinLPad },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
@@ -367,6 +368,10 @@ fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8,
     var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
     var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
+    //Exit early if no padding is nneeded
+    if (refStr.len >= asInt) {
+        return PrimitiveValue{ .chars = refStr };
+    }
     var result = try allocator.alloc(u8, asInt);
     var filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
 
@@ -375,6 +380,39 @@ fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8,
             result[i] = refStr[i];
         } else {
             var foff = (i - refStr.len) % filler.len;
+            result[i] = filler[foff];
+        }
+    }
+    return PrimitiveValue{ .chars = result };
+}
+
+fn builtinLPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if ((fun.args.len != 2) and (fun.args.len != 3)) {
+        std.debug.print(
+            "Failed to execute '{s}', expects 2 or 3 arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
+    var arg1 = fun.args[0];
+    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
+
+    var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
+    var result = try allocator.alloc(u8, asInt);
+
+    if (refStr.len >= asInt) {
+        return PrimitiveValue{ .chars = refStr };
+    }
+
+    var filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
+
+    var refOffset = asInt - refStr.len;
+
+    for (0..asInt) |i| {
+        if (i >= refOffset) {
+            result[i] = refStr[i - refOffset];
+        } else {
+            var foff = i % filler.len;
             result[i] = filler[foff];
         }
     }
