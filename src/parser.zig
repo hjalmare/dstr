@@ -34,7 +34,7 @@ const StringReader = struct {
 
     pub fn next(self: *StringReader) ?u8 {
         return if (self.offset < self.src.len) {
-            var ret = self.src[self.offset];
+            const ret = self.src[self.offset];
             self.offset = self.offset + 1;
             if (debugReader) {
                 std.debug.print(
@@ -48,7 +48,7 @@ const StringReader = struct {
 
     pub fn peek(self: StringReader) u8 {
         if (debugReader) {
-            var ret = self.src[self.offset - 1];
+            const ret = self.src[self.offset - 1];
             std.debug.print(
                 "\t\tReader.peek offset: {d} selectStart:{d} char:'{c}'\n",
                 .{ self.offset, self.selectStart, ret },
@@ -64,7 +64,7 @@ const StringReader = struct {
     pub fn select(self: *StringReader) void {
         self.selectStart = self.offset - 1;
         if (debugReader) {
-            var ret = self.src[self.offset - 1];
+            const ret = self.src[self.offset - 1];
             std.debug.print(
                 "\t\tReader.select offset: {d} selectStart:{d} char:'{c}'\n",
                 .{ self.offset, self.selectStart, ret },
@@ -75,7 +75,7 @@ const StringReader = struct {
     pub fn selectNext(self: *StringReader) void {
         self.selectStart = self.offset;
         if (debugReader) {
-            var ret = self.src[self.offset - 1];
+            const ret = self.src[self.offset - 1];
             std.debug.print(
                 "\t\tReader.selectNext offset: {d} selectStart:{d} char:'{c}'\n",
                 .{ self.offset, self.selectStart, ret },
@@ -96,7 +96,7 @@ const StringReader = struct {
             std.debug.print("\t\tReader.SkipWhitespaceUntil '{c}'\n", .{c});
         }
         self.skipWhitespace();
-        var n = self.peek();
+        const n = self.peek();
         if (n != c) {
             return DestructError.unexpected_char;
         }
@@ -117,8 +117,8 @@ const StringReader = struct {
     //Returns selection from the last select() until the previously
     //read char
     pub fn selection(self: StringReader) []const u8 {
-        var off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset - 1;
-        var ret = self.src[self.selectStart..off];
+        const off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset - 1;
+        const ret = self.src[self.selectStart..off];
 
         if (debugReader) {
             std.debug.print("\t\tReader.selection offset: {d} selectStart:{d} str:'{s}'\n", .{ self.offset, self.selectStart, ret });
@@ -127,9 +127,9 @@ const StringReader = struct {
     }
 
     pub fn selectionInc(self: StringReader) []const u8 {
-        var off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset;
+        const off = if (self.offset >= self.src.len) self.src.len - 1 else self.offset;
         if (debugReader) {
-            var ret = self.src[off];
+            const ret = self.src[off];
             std.debug.print("\t\tReader.selectionInc offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
         }
         return self.src[self.selectStart..(off + 1)];
@@ -138,7 +138,7 @@ const StringReader = struct {
     pub fn rewind(self: *StringReader) void {
         self.offset = self.offset - 1;
         if (debugReader) {
-            var ret = self.src[self.offset];
+            const ret = self.src[self.offset];
             std.debug.print("\t\tReader.rewind offset: {d} selectStart:{d} char:'{c}'\n", .{ self.offset, self.selectStart, ret });
         }
     }
@@ -154,6 +154,7 @@ const StringReader = struct {
 
         std.debug.print("{s}\n{s}\nUnexpected character: '{c}'\n", .{ .src = self.src, .pt = ln, .char = self.peek() });
     }
+
     pub fn printUnexpectedtEofError(self: *StringReader, allocator: Allocator) !void {
         var ln = try allocator.alloc(u8, self.offset);
         defer allocator.free(ln);
@@ -315,15 +316,15 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
         if (c == ']') {
             break;
         } else if (!isWhitespace(c)) {
-            var sym = readSymbol(it);
+            const sym = readSymbol(it);
             if (sym.len > 0) {
                 if (debug) {
                     std.debug.print("\tAdding SymbolBinding: '{s}'\n", .{sym});
                 }
 
-                var isIgnored = std.mem.eql(u8, "_", sym);
-                var isEllipsis = std.mem.eql(u8, "...", sym);
-                var leadAlpha = ascii.isAlphabetic(sym[0]);
+                const isIgnored = std.mem.eql(u8, "_", sym);
+                const isEllipsis = std.mem.eql(u8, "...", sym);
+                const leadAlpha = ascii.isAlphabetic(sym[0]);
 
                 if (isIgnored or isEllipsis or leadAlpha) {
                     try symbols.append(sym);
@@ -353,7 +354,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         else => return DestructError.InvalidCharacter,
     };
 
-    var evalStep = try allocator.create(builtin.StreamStep);
+    const evalStep = try allocator.create(builtin.StreamStep);
 
     var stream: *builtin.StreamStep = undefined;
     if (it.next() == '.') {
@@ -409,7 +410,7 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
             return DestructError.unexpected_char;
         } else if (c == '(') {
             //Fun
-            var stepName = it.selection();
+            const stepName = it.selection();
             var argList = ArrayList(AstNode).init(allocator);
             try readArgList(allocator, it, &argList);
             if (debug) {
@@ -417,7 +418,7 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
             }
 
             //TODO: Break this out like builtins
-            var ret = try allocator.create(builtin.StreamStep);
+            const ret = try allocator.create(builtin.StreamStep);
             if (std.mem.eql(u8, stepName, "filter")) {
                 ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
             } else if (std.mem.eql(u8, stepName, "skip")) {
@@ -479,12 +480,12 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             return DestructError.unexpected_char;
         } else if (c == '(') {
             //Fun
-            var funName = it.selection();
+            const funName = it.selection();
             try readArgList(allocator, it, argList);
             if (debug) {
                 std.debug.print("\tProducing fun '{s}'\n", .{funName});
             }
-            var ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
+            const ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
             if (it.next()) |lahead| {
                 if (isWhitespace(lahead) or lahead == '}') {
                     return ret;
@@ -519,7 +520,7 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
     //TODO: handle end of string (syntax error missing ')' )
     it.skipWhitespace();
     while (it.peek() != ')') {
-        var arg = try readAstNode(allocator, it);
+        const arg = try readAstNode(allocator, it);
 
         try args.append(arg);
         if (it.eof()) {
@@ -550,10 +551,10 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
             return wrapInFun(allocator, &argList, it);
         } else if (c == '(') {
             //Fun
-            var funName = it.selection();
+            const funName = it.selection();
             var argList = ArrayList(AstNode).init(allocator);
             try readArgList(allocator, it, &argList);
-            var ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
+            const ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
 
             if (it.next()) |lahead| {
                 if (lahead == '.') {
@@ -569,7 +570,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
             }
         } else if (isWhitespace(c) or c == '}' or c == ')') {
             //LoneRef
-            var refName = it.selection();
+            const refName = it.selection();
             if (debug) {
                 std.debug.print("\tProducing ref '{s}'\n", .{refName});
             }
@@ -579,7 +580,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
     }
 
     //End of input reached
-    var refName = it.selectionInc();
+    const refName = it.selectionInc();
     if (debug) {
         std.debug.print("\tProducing ref at eof '{s}'\n", .{refName});
     }
@@ -590,7 +591,7 @@ pub fn readEscapedStringCharacter(allocator: Allocator, it: *StringReader) !AstN
     if (debug) {
         std.debug.print("Enter readEscapedStringCharacter\n", .{});
     }
-    var cn = it.next();
+    const cn = it.next();
 
     if (cn) |c| {
         var buff = try allocator.alloc(u8, 1);
@@ -609,7 +610,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
     if (debug) {
         std.debug.print("Enter readStringExpression\n", .{});
     }
-    var qtType = it.peek();
+    const qtType = it.peek();
     var fragments = ArrayList(AstNode).init(allocator);
 
     if (debug and !((qtType == '\'') or (qtType == '"'))) {
@@ -625,7 +626,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
                 std.debug.print("\tFinal String fragment '{s}'\n", .{it.selection()});
             }
             try fragments.append(AstNode{ .chars = it.selection() });
-            var ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
+            const ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
 
             if (it.next()) |lahead| {
                 if (lahead == '.') {
@@ -665,7 +666,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
                         std.debug.print("\tFinal string after escape String fragment '{s}'\n", .{it.selection()});
                     }
 
-                    var ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
+                    const ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
 
                     if (it.next()) |lahead| {
                         if (lahead == '.') {
@@ -698,7 +699,7 @@ pub fn readInteger(it: *StringReader) !AstNode {
         }
     }
 
-    var intVal = try std.fmt.parseInt(i64, it.selection(), 10);
+    const intVal = try std.fmt.parseInt(i64, it.selection(), 10);
     if (debug) {
         std.debug.print("Producing integer: {}\n", .{intVal});
     }
@@ -713,13 +714,13 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNod
     it.skipWhitespace();
 
     //TODO: skip while here?
-    var c = it.peek();
+    const c = it.peek();
     if ((c == '\'') or (c == '"')) {
         return readStringExpression(allocator, it);
     } else if (isDigit(c)) {
         return readInteger(it);
     } else if (std.ascii.isAlphanumeric(c) and !isWhitespace(c) and (c != ')')) {
-        var ret = readRefOrFun(allocator, it);
+        const ret = readRefOrFun(allocator, it);
         return ret;
     }
 

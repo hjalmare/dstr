@@ -122,7 +122,7 @@ pub const FilterStep = struct {
 
     pub fn accept(self: FilterStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
         for (self.predicates) |pred| {
-            var p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
+            const p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
 
             if (!p) {
                 return true;
@@ -169,7 +169,7 @@ pub const EvalStep = struct {
     pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
         var ret = ArrayList([]const u8).init(line_allocator);
         for (self.expressions) |pred| {
-            var p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
+            const p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
 
             try ret.append(p);
         }
@@ -303,7 +303,7 @@ fn resolveRef(refMap: []const RefMap, line: [][]const u8, ref: []const u8) ![]co
     if (offset) |o| {
         if (o < 0) {
             const no: i32 = @as(i32, @intCast(line.len)) + o;
-            return line[@intCast(no)];
+            return if (no >= 0) line[@intCast(no)] else DestructError.missing_input;
         } else if (o >= line.len) {
             return DestructError.missing_input;
         } else {
@@ -339,20 +339,20 @@ fn assertArgsEq(name: []const u8, expected: usize, actual: usize) !void {
 }
 fn builtinUpper(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 1, fun.args.len);
-    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
 
-    var refBuf = try allocator.alloc(u8, arg1.len);
+    const refBuf = try allocator.alloc(u8, arg1.len);
     _ = std.ascii.upperString(refBuf, arg1);
     return PrimitiveValue{ .chars = refBuf };
 }
 
 fn builtinFirst(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 2, fun.args.len);
-    var arg1 = fun.args[0];
-    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
+    const arg1 = fun.args[0];
+    const asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
     var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
-    var result = refStr[0..(asInt)];
+    const result = refStr[0..(asInt)];
     return PrimitiveValue{ .chars = result };
 }
 
@@ -364,22 +364,22 @@ fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8,
         );
         return DestructError.exec_arg_error;
     }
-    var arg1 = fun.args[0];
-    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
+    const arg1 = fun.args[0];
+    const asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
-    var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
+    const refStr = try resolveCharsValue(allocator, refMap, line, arg1);
     //Exit early if no padding is nneeded
     if (refStr.len >= asInt) {
         return PrimitiveValue{ .chars = refStr };
     }
     var result = try allocator.alloc(u8, asInt);
-    var filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
+    const filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
 
     for (0..asInt) |i| {
         if (i < refStr.len) {
             result[i] = refStr[i];
         } else {
-            var foff = (i - refStr.len) % filler.len;
+            const foff = (i - refStr.len) % filler.len;
             result[i] = filler[foff];
         }
     }
@@ -394,25 +394,25 @@ fn builtinLPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8,
         );
         return DestructError.exec_arg_error;
     }
-    var arg1 = fun.args[0];
-    var asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
+    const arg1 = fun.args[0];
+    const asInt = @as(usize, @intCast(try (try resolvePrimitiveValue(allocator, refMap, line, fun.args[1])).toInt()));
 
-    var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
+    const refStr = try resolveCharsValue(allocator, refMap, line, arg1);
     var result = try allocator.alloc(u8, asInt);
 
     if (refStr.len >= asInt) {
         return PrimitiveValue{ .chars = refStr };
     }
 
-    var filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
+    const filler = if (fun.args.len == 3) try resolveCharsValue(allocator, refMap, line, fun.args[2]) else " ";
 
-    var refOffset = asInt - refStr.len;
+    const refOffset = asInt - refStr.len;
 
     for (0..asInt) |i| {
         if (i >= refOffset) {
             result[i] = refStr[i - refOffset];
         } else {
-            var foff = i % filler.len;
+            const foff = i % filler.len;
             result[i] = filler[foff];
         }
     }
@@ -455,9 +455,9 @@ fn builtinEq(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
 
 fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 2, fun.args.len);
-    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
-    var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
-    var ret = std.mem.startsWith(u8, arg1, arg2);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    const arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    const ret = std.mem.startsWith(u8, arg1, arg2);
     if (debug) {
         std.debug.print("startsWith {s} {s} {any}\n", .{ arg1, arg2, ret });
     }
@@ -466,15 +466,15 @@ fn builtinStartsWith(allocator: Allocator, refMap: []const RefMap, line: [][]con
 
 fn builtinEndsWith(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 2, fun.args.len);
-    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
-    var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    const arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.endsWith(u8, arg1, arg2) };
 }
 
 fn builtinContains(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 2, fun.args.len);
-    var arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
-    var arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    const arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.indexOf(u8, arg1, arg2) != null };
 }
 
@@ -484,17 +484,17 @@ fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
     if ((arg1 == PrimitiveValueType.int) or (arg2 == PrimitiveValueType.int)) {
-        var int1 = arg1.toInt() catch null;
-        var int2 = arg2.toInt() catch null;
+        const int1 = arg1.toInt() catch null;
+        const int2 = arg2.toInt() catch null;
         if (int1) |in1| {
             if (int2) |in2| {
                 return PrimitiveValue{ .bool = in1 > in2 };
             }
         }
     }
-    var char1 = try arg1.toChars(allocator);
-    var char2 = try arg2.toChars(allocator);
-    var cmp = std.mem.order(u8, char1, char2);
+    const char1 = try arg1.toChars(allocator);
+    const char2 = try arg2.toChars(allocator);
+    const cmp = std.mem.order(u8, char1, char2);
     return PrimitiveValue{ .bool = cmp == std.math.Order.gt };
 }
 
@@ -504,17 +504,17 @@ fn builtinLt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, f
     var arg2 = try resolvePrimitiveValue(allocator, refMap, line, fun.args[1]);
 
     if ((arg1 == PrimitiveValueType.int) or (arg2 == PrimitiveValueType.int)) {
-        var int1 = arg1.toInt() catch null;
-        var int2 = arg2.toInt() catch null;
+        const int1 = arg1.toInt() catch null;
+        const int2 = arg2.toInt() catch null;
         if (int1) |in1| {
             if (int2) |in2| {
                 return PrimitiveValue{ .bool = in1 < in2 };
             }
         }
     }
-    var char1 = try arg1.toChars(allocator);
-    var char2 = try arg2.toChars(allocator);
-    var cmp = std.mem.order(u8, char1, char2);
+    const char1 = try arg1.toChars(allocator);
+    const char2 = try arg2.toChars(allocator);
+    const cmp = std.mem.order(u8, char1, char2);
     return PrimitiveValue{ .bool = cmp == std.math.Order.lt };
 }
 

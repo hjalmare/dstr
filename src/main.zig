@@ -115,11 +115,11 @@ pub fn main() !void {
     //Allocator used for each line of input
     //TODO: use some resettable allocator here
     var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    var lineAllocator = lineArena.allocator();
+    const lineAllocator = lineArena.allocator();
     defer lineArena.deinit();
 
     //Process args
-    var args = try std.process.argsAlloc(allocator);
+    const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
     if (debug) {
         for (args) |a| {
@@ -466,6 +466,12 @@ test "Fail on missing input" {
     try failTest(src, input, DestructError.missing_input);
 }
 
+test "fail.ellipsis.empty.input" {
+    const src = "[ ... one ] one";
+    const input = "";
+    try failTest(src, input, DestructError.missing_input);
+}
+
 test "Fail on non alpha ref" {
     const src = "[ one two 3hree] one two three";
     try failCompile(src, DestructError.ref_non_alpha);
@@ -541,7 +547,7 @@ test "comp2 test" {
     const splatInput = try splitInput(allocator, input);
     var streamStep: builtin.StreamStep = soutStream();
     const pgm = try compile(allocator, src, &streamStep);
-    var ret = try execLine(allocator, pgm, splatInput);
+    const ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "strings baby", "aa", "cc" };
     try assertStrSlice(ret.items, expected[0..]);
 }
@@ -556,7 +562,7 @@ test "comp3 test" {
     const splatInput = try splitInput(allocator, input);
     var streamStep: builtin.StreamStep = soutStream();
     const pgm = try compile(allocator, src, &streamStep);
-    var ret = try execLine(allocator, pgm, splatInput);
+    const ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "aa", "strings cc" };
     try assertStrSlice(ret.items, expected[0..]);
 }
@@ -573,7 +579,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
         .positional => try splitInput(allocator, input),
         .segments => try splitSegments(allocator, pgm.input.segments, input),
     };
-    var ret = try execLine(allocator, pgm, splatInput);
+    const ret = try execLine(allocator, pgm, splatInput);
     try assertStrSlice(ret.items, expected[0..]);
 }
 
