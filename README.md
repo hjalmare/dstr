@@ -176,5 +176,4 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * Jit
 * Regex support
 * More string builtins like trimming
-* Boolean ops, and, or, not
 * Access to env vars
