@@ -1,5 +1,7 @@
 const std = @import("std");
 const expect = @import("std").testing.expect;
+const runtime = @import("runtime.zig");
+
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const ascii = std.ascii;
@@ -7,17 +9,25 @@ const isWhitespace = std.ascii.isWhitespace;
 const isDigit = std.ascii.isDigit;
 
 const builtin = @import("./builtin.zig");
-const DestructError = builtin.DestructError;
-const AstNodeType = builtin.AstNodeType;
-const AstNode = builtin.AstNode;
-const AstFun = builtin.AstFun;
-const Program = builtin.Program;
-const InputParser = builtin.InputParser;
+const DestructError = runtime.DestructError;
+const AstNodeType = runtime.AstNodeType;
+const AstNode = runtime.AstNode;
+const AstFun = runtime.AstFun;
+const InputParser = runtime.InputParser;
 const resolveBuiltin = builtin.resolveBuiltin;
+const RefMap = runtime.RefMap;
+const StreamStep = builtin.StreamStep;
 
 //Set to true for debug output
 const debug = false;
 const debugReader = false;
+
+pub const Program = struct {
+    input: InputParser,
+    refMap: []const RefMap,
+    ex: ArrayList(AstNode), //Todo: rename to ast?
+    stream: *StreamStep,
+};
 
 const StringReader = struct {
     src: []const u8,
@@ -183,15 +193,15 @@ fn readSymbol(it: *StringReader) []const u8 {
 
 const InputParserResult = struct {
     parser: InputParser,
-    refs: []const builtin.RefMap,
+    refs: []const RefMap,
 };
 
 //TODO: Only works with single quotes atm
 //TODO: Dirty as hell but it mostly works, cleanup later :D
 const pssState = enum { chars, ref };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
-    var nodes = ArrayList(builtin.SegmentNode).init(allocator);
-    var refMap = ArrayList(builtin.RefMap).init(allocator);
+    var nodes = ArrayList(runtime.SegmentNode).init(allocator);
+    var refMap = ArrayList(RefMap).init(allocator);
     _ = it.next(); //Skipp leading quote
     it.select();
 
@@ -233,7 +243,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         std.debug.print("\tAdding RefMap WS: '{s}' \n", .{it.selection()});
                     }
                     try nodes.append(.{ .ref = it.selection() });
-                    try refMap.append(builtin.RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
+                    try refMap.append(RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
                     it.skipWhitespaceUntil('}') catch {
                         try it.printUnexpectedCharError(allocator);
                         return DestructError.unexpected_char;
@@ -253,7 +263,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         std.debug.print("\tAdding RefMap: '{s}' \n", .{it.selection()});
                     }
                     try nodes.append(.{ .ref = it.selection() });
-                    try refMap.append(builtin.RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
+                    try refMap.append(RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
                     state = pssState.chars;
                     _ = it.next(); //Skip trailing }
                     it.select();
@@ -279,8 +289,8 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
     return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
 }
 
-pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]builtin.RefMap {
-    var ret = ArrayList(builtin.RefMap).init(allocator);
+pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]RefMap {
+    var ret = ArrayList(RefMap).init(allocator);
 
     var afterEllipse = false;
 
@@ -302,7 +312,7 @@ pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]bu
             if (debug) {
                 std.debug.print("\tAdding RefMap: '{s}' '{any}' Ellipse: '{any}'\n", .{ sym, offset, afterEllipse });
             }
-            try ret.append(builtin.RefMap{ .name = sym, .offset = offset });
+            try ret.append(RefMap{ .name = sym, .offset = offset });
         }
     }
 
@@ -397,7 +407,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
 //Stream parser
 // ==============================================================00
 
-pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, parentStream: *builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
+pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream: *builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
     if (debug) {
         std.debug.print("Enter parseStreamFun\n", .{});
     }
@@ -422,14 +432,14 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const builtin.RefMap, pare
             if (std.mem.eql(u8, stepName, "filter")) {
                 ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
             } else if (std.mem.eql(u8, stepName, "skip")) {
-                if ((argList.items.len == 1) and (argList.items[0] == builtin.AstNodeType.int)) {
+                if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
                     ret.* = .{ .skip = builtin.SkipStep{ .next = parentStream, .skipCount = argList.items[0].int } };
                 } else {
                     std.debug.print("Skip step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
             } else if (std.mem.eql(u8, stepName, "first")) {
-                if ((argList.items.len == 1) and (argList.items[0] == builtin.AstNodeType.int)) {
+                if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
                     ret.* = .{ .first = builtin.FirstStep{ .next = parentStream, .count = argList.items[0].int } };
                 } else {
                     std.debug.print("First step requires one integer param\n", .{});

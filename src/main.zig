@@ -4,14 +4,14 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
 const builtin = @import("./builtin.zig");
-const DestructError = builtin.DestructError;
-const Program = builtin.Program;
-const AstFun = builtin.AstFun;
-const AstNode = builtin.AstNode;
-const resolveCharsValue = builtin.resolveCharsValue;
-
+const runtime = @import("./runtime.zig");
 const parser = @import("./parser.zig");
 const compile = parser.compile;
+const DestructError = runtime.DestructError;
+const Program = parser.Program;
+const AstFun = runtime.AstFun;
+const AstNode = runtime.AstNode;
+const resolveCharsValue = runtime.resolveCharsValue;
 
 //Set to true for debug output
 const debug = false;
@@ -53,7 +53,7 @@ fn splitInput(allocator: Allocator, input: []const u8) ![][]const u8 {
     return ret.items;
 }
 
-fn splitSegments(allocator: Allocator, segments: []const builtin.SegmentNode, input: []const u8) ![][]const u8 {
+fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, input: []const u8) ![][]const u8 {
     var ret = ArrayList([]const u8).init(allocator);
     var start: usize = 0;
 
@@ -154,7 +154,7 @@ pub fn main() !void {
             .positional => splitInput(lineAllocator, in),
             .segments => splitSegments(allocator, pgm.input.segments, in),
         } catch |err| {
-            if (err == builtin.DestructError.missing_input) {
+            if (err == DestructError.missing_input) {
                 if (debug) {
                     std.debug.print("Missing input!\n", .{});
                 }
@@ -167,7 +167,7 @@ pub fn main() !void {
         };
 
         const cont = pgm.stream.accept(lineAllocator, splatInput) catch |err| {
-            if (err == builtin.DestructError.missing_input) {
+            if (err == DestructError.missing_input) {
                 if (debug) {
                     std.debug.print("Missing input!\n", .{});
                 }
