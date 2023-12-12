@@ -9,6 +9,7 @@ const isWhitespace = std.ascii.isWhitespace;
 const isDigit = std.ascii.isDigit;
 
 const builtin = @import("./builtin.zig");
+const streamstep = @import("./streamstep.zig");
 const DestructError = runtime.DestructError;
 const AstNodeType = runtime.AstNodeType;
 const AstNode = runtime.AstNode;
@@ -16,7 +17,7 @@ const AstFun = runtime.AstFun;
 const InputParser = runtime.InputParser;
 const resolveBuiltin = builtin.resolveBuiltin;
 const RefMap = runtime.RefMap;
-const StreamStep = builtin.StreamStep;
+const StreamStep = streamstep.StreamStep;
 
 //Set to true for debug output
 const debug = false;
@@ -354,7 +355,7 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
     return InputParserResult{ .parser = .{ .positional = symbols.items }, .refs = refMap };
 }
 
-pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builtin.StreamStep) !Program {
+pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *streamstep.StreamStep) !Program {
     var it = StringReader.init(source);
 
     const firstChar = if (it.nextNonWhitespace()) |c| c else return DestructError.InvalidCharacter;
@@ -364,9 +365,9 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         else => return DestructError.InvalidCharacter,
     };
 
-    const evalStep = try allocator.create(builtin.StreamStep);
+    const evalStep = try allocator.create(StreamStep);
 
-    var stream: *builtin.StreamStep = undefined;
+    var stream: *StreamStep = undefined;
     if (it.next() == '.') {
         stream = try parseStreamFun(allocator, input.refs, evalStep, &it);
     } else {
@@ -400,14 +401,14 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *builti
         }
         prefix.deinit();
     }
-    evalStep.* = builtin.StreamStep{ .eval = builtin.EvalStep{ .next = terminalStream, .refMap = input.refs, .expressions = ex.items } };
+    evalStep.* = StreamStep{ .eval = streamstep.EvalStep{ .next = terminalStream, .refMap = input.refs, .expressions = ex.items } };
     return Program{ .input = input.parser, .refMap = input.refs, .ex = ex, .stream = stream };
 }
 
 //Stream parser
 // ==============================================================00
 
-pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream: *builtin.StreamStep, it: *StringReader) !*builtin.StreamStep {
+pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream: *StreamStep, it: *StringReader) !*StreamStep {
     if (debug) {
         std.debug.print("Enter parseStreamFun\n", .{});
     }
@@ -428,19 +429,19 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream
             }
 
             //TODO: Break this out like builtins
-            const ret = try allocator.create(builtin.StreamStep);
+            const ret = try allocator.create(StreamStep);
             if (std.mem.eql(u8, stepName, "filter")) {
-                ret.* = .{ .filter = builtin.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
+                ret.* = .{ .filter = streamstep.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
             } else if (std.mem.eql(u8, stepName, "skip")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
-                    ret.* = .{ .skip = builtin.SkipStep{ .next = parentStream, .skipCount = argList.items[0].int } };
+                    ret.* = .{ .skip = streamstep.SkipStep{ .next = parentStream, .skipCount = argList.items[0].int } };
                 } else {
                     std.debug.print("Skip step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
             } else if (std.mem.eql(u8, stepName, "first")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
-                    ret.* = .{ .first = builtin.FirstStep{ .next = parentStream, .count = argList.items[0].int } };
+                    ret.* = .{ .first = streamstep.FirstStep{ .next = parentStream, .count = argList.items[0].int } };
                 } else {
                     std.debug.print("First step requires one integer param\n", .{});
                     return DestructError.unexpected_char;

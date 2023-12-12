@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const builtin = @import("./builtin.zig");
 const runtime = @import("./runtime.zig");
 const parser = @import("./parser.zig");
+const streamstep = @import("./streamstep.zig");
 const compile = parser.compile;
 const DestructError = runtime.DestructError;
 const Program = parser.Program;
@@ -143,7 +144,11 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut();
 
-    var stream: builtin.StreamStep = if (args.len == 2) builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } } else builtin.StreamStep{ .exec = builtin.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+    var stream: streamstep.StreamStep = if (args.len == 2)
+        streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } }
+    else
+        streamstep.StreamStep{ .exec = streamstep.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+
     const pgm = compile(allocator, src, &stream) catch {
         std.os.exit(1);
     };
@@ -495,9 +500,9 @@ test "Fail on missing paren in stream" {
     try failCompile(src, DestructError.unexpected_char);
 }
 
-fn soutStream() builtin.StreamStep {
+fn soutStream() streamstep.StreamStep {
     const stdout = std.io.getStdOut();
-    return builtin.StreamStep{ .systemOut = builtin.SystemOutStep{ .writer = stdout } };
+    return streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } };
 }
 
 fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !void {
@@ -505,7 +510,7 @@ fn failTest(src: []const u8, input: []const u8, expected_error: DestructError) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    var streamStep: builtin.StreamStep = soutStream();
+    var streamStep: streamstep.StreamStep = soutStream();
     const pgm = compile(allocator, src, &streamStep) catch |err| {
         try expect(err == expected_error);
         return;
@@ -525,7 +530,7 @@ fn failCompile(src: []const u8, expected_error: DestructError) !void {
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    var streamStep: builtin.StreamStep = soutStream();
+    var streamStep: streamstep.StreamStep = soutStream();
     _ = compile(allocator, src, &streamStep) catch |err| {
         expect(err == expected_error) catch |e| {
             std.debug.print("Expected: {any} but got: {any}\n", .{ expected_error, err });
@@ -545,7 +550,7 @@ test "comp2 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    var streamStep: builtin.StreamStep = soutStream();
+    var streamStep: streamstep.StreamStep = soutStream();
     const pgm = try compile(allocator, src, &streamStep);
     const ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "strings baby", "aa", "cc" };
@@ -560,7 +565,7 @@ test "comp3 test" {
 
     const input = "aa bb cc";
     const splatInput = try splitInput(allocator, input);
-    var streamStep: builtin.StreamStep = soutStream();
+    var streamStep: streamstep.StreamStep = soutStream();
     const pgm = try compile(allocator, src, &streamStep);
     const ret = try execLine(allocator, pgm, splatInput);
     const expected = [_][]const u8{ "aa", "strings cc" };
@@ -573,7 +578,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    var streamStep: builtin.StreamStep = soutStream();
+    var streamStep: streamstep.StreamStep = soutStream();
     const pgm = try compile(allocator, src, &streamStep);
     const splatInput = switch (pgm.input) {
         .positional => try splitInput(allocator, input),
