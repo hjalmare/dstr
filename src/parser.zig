@@ -763,6 +763,5 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNod
     if (debug) {
         std.debug.print("Exit readAstNode\n", .{});
     }
-    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
