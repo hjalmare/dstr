@@ -408,7 +408,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *stream
 //Stream parser
 // ==============================================================00
 
-pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream: *StreamStep, it: *StringReader) !*StreamStep {
+pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *StreamStep, it: *StringReader) !*StreamStep {
     if (debug) {
         std.debug.print("Enter parseStreamFun\n", .{});
     }
@@ -428,20 +428,38 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream
                 std.debug.print("\tProducing StreamStep '{s}'\n", .{stepName});
             }
 
+            var nextStep: *StreamStep = undefined;
+
+            if (it.next()) |lahead| {
+                if (isWhitespace(lahead) or lahead == '}') {
+                    nextStep = endStep;
+                } else if (lahead == ')') {
+                    it.rewind();
+                    nextStep = endStep;
+                } else if (lahead == '.') {
+                    nextStep = try parseStreamFun(allocator, refMap, endStep, it); //wrapInFun(allocator, &innerArgs, it);
+                } else {
+                    return DestructError.unexpected_char;
+                }
+            } else {
+                //Just fail here?
+                nextStep = endStep;
+            }
+
             //TODO: Break this out like builtins
             const ret = try allocator.create(StreamStep);
             if (std.mem.eql(u8, stepName, "filter")) {
-                ret.* = .{ .filter = streamstep.FilterStep{ .next = parentStream, .predicates = argList.items, .refMap = refMap } };
+                ret.* = .{ .filter = streamstep.FilterStep{ .next = nextStep, .predicates = argList.items, .refMap = refMap } };
             } else if (std.mem.eql(u8, stepName, "skip")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
-                    ret.* = .{ .skip = streamstep.SkipStep{ .next = parentStream, .skipCount = argList.items[0].int } };
+                    ret.* = .{ .skip = streamstep.SkipStep{ .next = nextStep, .skipCount = argList.items[0].int } };
                 } else {
                     std.debug.print("Skip step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
             } else if (std.mem.eql(u8, stepName, "first")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
-                    ret.* = .{ .first = streamstep.FirstStep{ .next = parentStream, .count = argList.items[0].int } };
+                    ret.* = .{ .first = streamstep.FirstStep{ .next = nextStep, .count = argList.items[0].int } };
                 } else {
                     std.debug.print("First step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
@@ -451,20 +469,7 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, parentStream
                 return DestructError.unexpected_char;
             }
 
-            if (it.next()) |lahead| {
-                if (isWhitespace(lahead) or lahead == '}') {
-                    return ret; //ret;
-                } else if (lahead == ')') {
-                    it.rewind();
-                    return ret;
-                } else if (lahead == '.') {
-                    return parseStreamFun(allocator, refMap, ret, it); //wrapInFun(allocator, &innerArgs, it);
-                } else {
-                    return DestructError.unexpected_char;
-                }
-            } else {
-                return ret;
-            }
+            return ret;
         } else if (isWhitespace(c)) {
             //LoneRef
             return DestructError.unexpected_char;
