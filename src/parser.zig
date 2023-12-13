@@ -413,7 +413,17 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
         std.debug.print("Enter parseStreamFun\n", .{});
     }
 
-    _ = it.next(); //Skip leading '.'
+    if (it.next()) |c| {
+        if (!ascii.isAlphanumeric(c)) {
+            try it.printUnexpectedCharError(allocator);
+
+            return DestructError.unexpected_char;
+        }
+    } else {
+        try it.printUnexpectedtEofError(allocator);
+        return DestructError.unexpected_char;
+    }
+
     it.select();
 
     while (it.next()) |c| {
@@ -443,7 +453,9 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
                 }
             } else {
                 //Just fail here?
-                nextStep = endStep;
+                //nextStep = endStep;
+                try it.printUnexpectedtEofError(allocator);
+                return DestructError.unexpected_char;
             }
 
             //TODO: Break this out like builtins
@@ -541,6 +553,7 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         try args.append(arg);
         if (it.eof()) {
             //When we reach end of program before seeing the closing paren
+            try it.printUnexpectedtEofError(allocator);
             return DestructError.unexpected_char;
         }
         _ = it.next();
