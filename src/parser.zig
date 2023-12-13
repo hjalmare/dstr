@@ -484,10 +484,12 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
             return ret;
         } else if (isWhitespace(c)) {
             //LoneRef
+            try it.printUnexpectedCharError(allocator);
             return DestructError.unexpected_char;
         }
     }
 
+    try it.printUnexpectedtEofError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -536,6 +538,7 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
         }
     }
 
+    try it.printUnexpectedtEofError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -751,10 +754,15 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNod
     } else if (std.ascii.isAlphanumeric(c) and !isWhitespace(c) and (c != ')')) {
         const ret = readRefOrFun(allocator, it);
         return ret;
+    } else if (c == ' ') {
+        //if we still point to a whitespace after skipWhitespace we are at eof
+        try it.printUnexpectedtEofError(allocator);
+        return DestructError.unexpected_char;
     }
 
     if (debug) {
         std.debug.print("Exit readAstNode\n", .{});
     }
+    try it.printUnexpectedCharError(allocator);
     return DestructError.unexpected_char;
 }
