@@ -369,7 +369,17 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *stream
 
     var stream: *StreamStep = undefined;
     if (it.next() == '.') {
-        stream = try parseStreamFun(allocator, input.refs, evalStep, &it);
+        stream = parseStreamFun(allocator, input.refs, evalStep, &it) catch |err| {
+            switch (err) {
+                DestructError.unexpected_char => {
+                    try it.printUnexpectedCharError(allocator);
+                },
+                else => {
+                    std.debug.print("Compilation error {any}\n", .{ .err = err });
+                },
+            }
+            return err;
+        };
     } else {
         stream = evalStep;
     }
@@ -415,12 +425,9 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
 
     if (it.next()) |c| {
         if (!ascii.isAlphanumeric(c)) {
-            try it.printUnexpectedCharError(allocator);
-
             return DestructError.unexpected_char;
         }
     } else {
-        try it.printUnexpectedtEofError(allocator);
         return DestructError.unexpected_char;
     }
 
@@ -454,7 +461,6 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
             } else {
                 //Just fail here?
                 //nextStep = endStep;
-                try it.printUnexpectedtEofError(allocator);
                 return DestructError.unexpected_char;
             }
 
@@ -484,12 +490,10 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
             return ret;
         } else if (isWhitespace(c)) {
             //LoneRef
-            try it.printUnexpectedCharError(allocator);
             return DestructError.unexpected_char;
         }
     }
 
-    try it.printUnexpectedtEofError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -538,7 +542,6 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
         }
     }
 
-    try it.printUnexpectedtEofError(allocator);
     return DestructError.unexpected_char;
 }
 
@@ -556,7 +559,6 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
         try args.append(arg);
         if (it.eof()) {
             //When we reach end of program before seeing the closing paren
-            try it.printUnexpectedtEofError(allocator);
             return DestructError.unexpected_char;
         }
         _ = it.next();
@@ -756,7 +758,6 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNod
         return ret;
     } else if (c == ' ') {
         //if we still point to a whitespace after skipWhitespace we are at eof
-        try it.printUnexpectedtEofError(allocator);
         return DestructError.unexpected_char;
     }
 
