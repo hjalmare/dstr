@@ -184,7 +184,7 @@ ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr
 > README.md 04c6e90faac2675aa89e2176d2eec7d8
 ```
 
-Thats better, now we can get the md5 of the file itself, and yet again we pipe it through dstr to only get the md5 value
+Thats better, now we can get the md5 of the file itself, this is done by invoking `md5sum` with the filename as an argument. Yet again we pipe it through dstr to only get the md5 value
 
 ```
 ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a') cmd('md5sum' a).pipe('dstr' '[a] a')" 
