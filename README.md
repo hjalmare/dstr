@@ -7,7 +7,7 @@ Because cut is hard.
 
 ## Usage
 dstr reads lines of input from system in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
-Similar to cut and awk.
+Similar to cut and awk but with a more c-like interface.
 
 ```
 dstr "destructoring output" executable?
@@ -109,7 +109,7 @@ There is currently a small selection of functions implemented.
 | `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
 | `cmd(command args..)`   | `command.cmd(args..)`   | Execute command with a optional list of args Example: `cmd('echo' '-n' a)`            |
-| `pipe(val cmd args..)`  | `val.pipe(cmd args..)   | Execute cmd and pipe `val` viiiiiiiem out to `cmd`                                    |
+| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute cmd and pipe `val` out to `cmd`                                               |
 
 
 ### Filtering 
@@ -131,11 +131,11 @@ $ cat dump.csv | dstr "[_ em ... c].filter(eq(c 'true')) em"
 
 These are the currently implemented filter functions.
 
-| Filter       | Description                                 |
-|--------------|---------------------------------------------|
-| first(num)   | Process only the first `num` items of input |
-| skip(num)    | Skip the first `num` items of input         |
-| filter(pred) | Only process input that matches pred        |
+| Filter         | Description                                 |
+|----------------|---------------------------------------------|
+| `first(num)`   | Process only the first `num` items of input |
+| `skip(num)`    | Skip the first `num` items of input         |
+| `filter(pred)` | Only process input that matches pred        |
 
 
 ## A contrived example
@@ -184,7 +184,7 @@ ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr
 > README.md 04c6e90faac2675aa89e2176d2eec7d8
 ```
 
-Thats better, now we can get the md5 of the file itself, and yet again we pipe it through dstr to only get the md5 value
+Thats better, now we can get the md5 of the file itself, this is done by invoking `md5sum` with the filename as an argument. Yet again we pipe it through dstr to only get the md5 value
 
 ```
 ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a') cmd('md5sum' a).pipe('dstr' '[a] a')" 
