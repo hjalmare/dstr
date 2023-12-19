@@ -167,7 +167,7 @@ fn builtinCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, 
         try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
     }
 
-    var cp = std.ChildProcess.exec(.{ .argv = argbuff.items, .allocator = allocator }) catch {
+    const cp = std.ChildProcess.run(.{ .argv = argbuff.items, .allocator = allocator }) catch {
         std.debug.print("Failed to execute '{s}'\n", .{argbuff.items[0]});
 
         return DestructError.invocation_error;
