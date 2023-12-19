@@ -7,7 +7,7 @@ Because cut is hard.
 
 ## Usage
 dstr reads lines of input from system in, splits it and then binds it onto symbols that can be printed or sent to another executable. 
-Similar to cut and awk.
+Similar to cut and awk but with a more c-like interface.
 
 ```
 dstr "destructoring output" executable?
