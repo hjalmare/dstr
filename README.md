@@ -109,7 +109,7 @@ There is currently a small selection of functions implemented.
 | `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
 | `cmd(command args..)`   | `command.cmd(args..)`   | Execute command with a optional list of args Example: `cmd('echo' '-n' a)`            |
-| `pipe(val cmd args..)`  | `val.pipe(cmd args..)   | Execute cmd and pipe `val` viiiiiiiem out to `cmd`                                    |
+| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute cmd and pipe `val` out to `cmd`                                               |
 
 
 ### Filtering 
@@ -131,11 +131,11 @@ $ cat dump.csv | dstr "[_ em ... c].filter(eq(c 'true')) em"
 
 These are the currently implemented filter functions.
 
-| Filter       | Description                                 |
-|--------------|---------------------------------------------|
-| first(num)   | Process only the first `num` items of input |
-| skip(num)    | Skip the first `num` items of input         |
-| filter(pred) | Only process input that matches pred        |
+| Filter         | Description                                 |
+|----------------|---------------------------------------------|
+| `first(num)`   | Process only the first `num` items of input |
+| `skip(num)`    | Skip the first `num` items of input         |
+| `filter(pred)` | Only process input that matches pred        |
 
 
 ## A contrived example
