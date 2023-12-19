@@ -52,7 +52,7 @@ $ cat dump.csv
 > 543346 qwerty@asdf.com 1 1 false
 > 543347 foo@bar.com 38 19 true
 
-$cat dump.csv | dstr "[_ em ... c] em c"
+$ cat dump.csv | dstr "[_ em ... c] em c"
 > asdf@asdf.com true
 > qwerty@asdf.com false
 > foo@bar.com true
@@ -108,8 +108,91 @@ There is currently a small selection of functions implemented.
 | `and(val1 val2)`        | `val1.and(val2)`        | Boolean and, returns true if all arguments are true. Can take any number of arguments |
 | `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
+| `cmd(command args..)`   | `command.cmd(args..)`   | Execute command with a optional list of args Example: `cmd('echo' '-n' a)`            |
+| `pipe(val cmd args..)`  | `val.pipe(cmd args..)   | Execute cmd and pipe `val` viiiiiiiem out to `cmd`                                    |
 
-## Examples
+
+### Filtering 
+
+dstr can filter input based on a filter function. In the csv example above we could use a filter function to filter out the items where contact is `false`.
+
+```
+$ cat dump.csv
+> 543345 asdf@asdf.com 43 2 true
+> 543346 qwerty@asdf.com 1 1 false
+> 543347 foo@bar.com 38 19 true
+
+$ cat dump.csv | dstr "[_ em ... c].filter(eq(c 'true')) em"
+> asdf@asdf.com
+> foo@bar.com 
+```
+
+#### Available filter functions
+
+These are the currently implemented filter functions.
+
+| Filter       | Description                                 |
+|--------------|---------------------------------------------|
+| first(num)   | Process only the first `num` items of input |
+| skip(num)    | Skip the first `num` items of input         |
+| filter(pred) | Only process input that matches pred        |
+
+
+## A contrived example
+Lets construct a command that prints the names of all markdown files in a directory followed by the md5 sum of its filename, and the md5 of the file.
+
+
+We can start by listing the files 
+
+```
+$ ls -ld *
+> -rw-rw-r-- 1 hjalle hjalle  822 okt 27 17:39 ABOUT.md
+> -rwxrwxr-x 1 hjalle hjalle  148 okt 16 08:26 build_pak.sh
+> -rw-rw-r-- 1 hjalle hjalle  922 maj 30  2023 build.zig
+> -rw-rw-r-- 1 hjalle hjalle 1073 dec  8  2022 LICENSE
+> -rw-rw-r-- 1 hjalle hjalle 8548 dec 19 16:48 README.md
+> drwxrwxr-x 2 hjalle hjalle 4096 sep 28 12:25 releases
+> -rwxrwxr-x 1 hjalle hjalle  291 feb 12  2023 rel_tag.sh
+> drwxrwxr-x 2 hjalle hjalle 4096 dec 13 17:55 src
+> drwxr-xr-x 6 hjalle hjalle 4096 jan  3  2023 zig-cache
+> drwxr-xr-x 3 hjalle hjalle 4096 sep 28 12:26 zig-out
+```
+
+We can use dstr to extract the last column and then a filter expression filter out things that do not have the `.md` suffix.
+
+And yes we could use `ls -d1 *` to only list the filenames, but that's not educational.
+
+```
+ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a"
+> ABOUT.md
+> README.md
+```
+
+Now we want the md5 of the filename, we can get that by piping the filenime through the `md5sum` program
+
+```
+ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum')"
+> ABOUT.md 04b245524e2e996e7a38bbfdf3de29f8 -
+> README.md 04c6e90faac2675aa89e2176d2eec7d8 -
+```
+
+md5sum outputs a annoying dash at the end, we can pipe it through dstr to pick out the first column.
+
+```
+ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a')"
+> ABOUT.md 04b245524e2e996e7a38bbfdf3de29f8
+> README.md 04c6e90faac2675aa89e2176d2eec7d8
+```
+
+Thats better, now we can get the md5 of the file itself, and yet again we pipe it through dstr to only get the md5 value
+
+```
+ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a') cmd('md5sum' a).pipe('dstr' '[a] a')" 
+> ABOUT.md 04b245524e2e996e7a38bbfdf3de29f8 5d22bb958d6896cff8cc4e2032bbe57e
+> README.md 04c6e90faac2675aa89e2176d2eec7d8 35156376b5a04f2c90c903ebf282dfe5
+```
+
+## More examples
 
 A little bit of everything
 ```
@@ -165,14 +248,14 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 
 
 ## TODO
+* Lots of cleanup :D
 * Nicer errors and error checking
 * csv parsing
 * use files as input
 * compiletime typecheck
-* faster stdio
+* faster stdio (maybe?)
 * escapes in template destructoring
 * toggleable strict mode
-* arg checks on all builtins
 * Jit
 * Regex support
 * More string builtins like trimming

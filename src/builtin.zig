@@ -21,6 +21,8 @@ pub const Builtin = struct {
 };
 
 const builtins = [_]Builtin{
+    Builtin{ .name = "cmd", .impl = builtinCmd },
+    Builtin{ .name = "pipe", .impl = builtinPipeCmd },
     Builtin{ .name = "upper", .impl = builtinUpper },
     Builtin{ .name = "first", .impl = builtinFirst },
     Builtin{ .name = "rpad", .impl = builtinRPad },
@@ -148,6 +150,85 @@ fn builtinStr(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, 
         try strBuf.appendSlice(try resolveCharsValue(allocator, refMap, line, a));
     }
     return PrimitiveValue{ .chars = strBuf.items };
+}
+
+fn builtinCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if (fun.args.len == 0) {
+        std.debug.print(
+            "Failed to execute '{s}', expects atleast 1 arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
+
+    var argbuff = std.ArrayList([]const u8).init(allocator);
+
+    for (fun.args) |a| {
+        try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
+    }
+
+    var cp = std.ChildProcess.exec(.{ .argv = argbuff.items, .allocator = allocator }) catch {
+        std.debug.print("Failed to execute '{s}'\n", .{argbuff.items[0]});
+
+        return DestructError.invocation_error;
+    };
+
+    return PrimitiveValue{ .chars = cp.stdout };
+}
+
+fn builtinPipeCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if (fun.args.len <= 1) {
+        std.debug.print(
+            "Failed to execute '{s}', expects atleast 2 arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
+
+    const cmd = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
+    const data = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+
+    var argbuff = std.ArrayList([]const u8).init(allocator);
+
+    try argbuff.append(cmd);
+    for (fun.args[2..]) |a| {
+        try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
+    }
+
+    var process = std.ChildProcess.init(argbuff.items, allocator);
+    process.stdin_behavior = .Pipe;
+    process.stdout_behavior = .Pipe;
+    process.stderr_behavior = .Pipe;
+    process.spawn() catch {
+        return DestructError.invocation_error;
+    };
+
+    process.stdin.?.writeAll(data) catch {
+        return DestructError.invocation_error;
+    };
+
+    process.stdin.?.close();
+    process.stdin = null;
+
+    var out = std.ArrayList(u8).init(allocator);
+    var err = std.ArrayList(u8).init(allocator);
+    process.collectOutput(&out, &err, std.math.maxInt(usize)) catch {
+        return DestructError.invocation_error;
+    };
+
+    _ = process.wait() catch {
+        std.debug.print("Failed to execute '{s}'\n", .{argbuff.items[0]});
+
+        return DestructError.invocation_error;
+    };
+
+    var outStr: []u8 = undefined;
+    if ((out.items.len > 0) and (std.ascii.isWhitespace(out.items[out.items.len - 1]))) {
+        outStr = out.items[0 .. out.items.len - 1];
+    } else {
+        outStr = out.items;
+    }
+    return PrimitiveValue{ .chars = outStr };
 }
 
 //Comparisons

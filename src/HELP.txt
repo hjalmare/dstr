@@ -19,3 +19,11 @@ not(val1)
 and(val1 val2...)
 or(val1 val2...)
 if(pred trueExp falseExp)
+cmd(command args...)
+pipe(val command args....)
+
+Filters:
+
+first(num)
+skip(num)
+filter(predicate)
