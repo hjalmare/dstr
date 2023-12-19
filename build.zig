@@ -10,8 +10,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
-    const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&main_tests.step);
+    const run_unit_tests = b.addRunArtifact(main_tests);
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_unit_tests.step);
 
     const exe = b.addExecutable(.{
         .name = "dstr",
