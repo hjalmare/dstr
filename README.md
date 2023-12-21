@@ -97,6 +97,8 @@ There is currently a small selection of functions implemented.
 | `first(val num)`        | `val.first(num)`        | Takes the first `num` characters from `val`                                           |
 | `rpad(val num)`         | `val.rpad(num)`         | Pads the right side of `val` with spaces so that it is `num` characters long          |
 | `rpad(val num ptrn)`    | `val.rpad(num ptrn)`    | Pads the right side of `val` with `ptrn` so that it is `num` characters long          |
+| `lpad(val num)`         | `val.lpad(num)`         | Pads the left side of `val` with spaces so that it is `num` characters long           |
+| `lpad(val num ptrn)`    | `val.lpad(num ptrn)`    | Pads the left side of `val` with `ptrn` so that it is `num` characters long           |
 | `upper(val)`            | `val.upper()`           | Return the uppercaser version of `val`                                                |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                         |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                                |
@@ -109,7 +111,7 @@ There is currently a small selection of functions implemented.
 | `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
 | `cmd(command args..)`   | `command.cmd(args..)`   | Execute command with a optional list of args Example: `cmd('echo' '-n' a)`            |
-| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute cmd and pipe `val` out to `cmd`                                               |
+| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute cmd and pipe `val` out to `cmd` Example: `a.pipe('sed' 's/A/a/')`             |
 
 
 ### Filtering 
