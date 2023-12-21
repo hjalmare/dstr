@@ -168,7 +168,7 @@ ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a"
 > README.md
 ```
 
-Now we want the md5 of the filename, we can get that by piping the filenime through the `md5sum` program
+Now we want the md5 of the filename, we can get that by piping the filename through the `md5sum` program
 
 ```
 ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum')"
@@ -176,7 +176,7 @@ ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum')"
 > README.md 04c6e90faac2675aa89e2176d2eec7d8 -
 ```
 
-md5sum outputs a annoying dash at the end, we can pipe it through dstr to pick out the first column.
+`md5sum` outputs a annoying dash at the end, we can pipe it through `dstr` to pick out the first column.
 
 ```
 ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a')"
@@ -184,7 +184,7 @@ ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr
 > README.md 04c6e90faac2675aa89e2176d2eec7d8
 ```
 
-Thats better, now we can get the md5 of the file itself, this is done by invoking `md5sum` with the filename as an argument. Yet again we pipe it through dstr to only get the md5 value
+Thats better, now we can get the md5 of the file itself, this is done by invoking `md5sum` with the filename as an argument. Yet again we pipe it through `dstr` to only get the md5 value
 
 ```
 ls -ld * | dstr "[... a].filter(a.endsWith('.md')) a a.pipe('md5sum').pipe('dstr' '[a] a') cmd('md5sum' a).pipe('dstr' '[a] a')" 
