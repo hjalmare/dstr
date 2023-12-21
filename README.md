@@ -110,8 +110,8 @@ There is currently a small selection of functions implemented.
 | `and(val1 val2)`        | `val1.and(val2)`        | Boolean and, returns true if all arguments are true. Can take any number of arguments |
 | `or(val1 val2)`         | `val1.or(val2)`         | Boolean or, returns tro if any argument is true. Can take any number of arguments     |
 | `if(pred tr fa)`        | `pred.if(tr fa)`        | If `pred` is true returns `tr` else `fa`  Example: `if(a.eq(b) 'same' 'not same')`    |
-| `cmd(command args..)`   | `command.cmd(args..)`   | Execute command with a optional list of args Example: `cmd('echo' '-n' a)`            |
-| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute cmd and pipe `val` out to `cmd` Example: `a.pipe('sed' 's/A/a/')`             |
+| `cmd(command args..)`   | `command.cmd(args..)`   | Execute `command` with a optional list of args Example: `cmd('echo' '-n' a)`          |
+| `pipe(val cmd args..)`  | `val.pipe(cmd args..)`  | Execute `cmd` and pipe `val` out to `cmd` Example: `a.pipe('sed' 's/A/a/')`           |
 
 
 ### Filtering 
