@@ -173,7 +173,14 @@ fn builtinCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, 
         return DestructError.invocation_error;
     };
 
-    return PrimitiveValue{ .chars = cp.stdout };
+    var outStr: []u8 = undefined;
+    const out = cp.stdout;
+    if ((out.len > 0) and (std.ascii.isWhitespace(out[out.len - 1]))) {
+        outStr = out[0 .. out.len - 1];
+    } else {
+        outStr = out;
+    }
+    return PrimitiveValue{ .chars = outStr };
 }
 
 fn builtinPipeCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
