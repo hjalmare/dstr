@@ -99,16 +99,28 @@ pub const SystemOutStep = struct {
 
     pub fn accept(self: SystemOutStep, line: [][]const u8) DestructError!bool {
         for (line, 0..) |o, i| {
-            if (i != 0) self.writer.writer().writeAll(" ") catch {
-                return DestructError.undefined;
+            if (i != 0) self.writer.writer().writeAll(" ") catch |err| {
+                if (err == error.BrokenPipe) {
+                    return DestructError.StreamClosed;
+                } else {
+                    return DestructError.undefined;
+                }
             };
 
-            self.writer.writer().writeAll(o) catch {
-                return DestructError.undefined;
+            self.writer.writer().writeAll(o) catch |err| {
+                if (err == error.BrokenPipe) {
+                    return DestructError.StreamClosed;
+                } else {
+                    return DestructError.undefined;
+                }
             };
         }
-        self.writer.writer().writeAll("\n") catch {
-            return DestructError.undefined;
+        self.writer.writer().writeAll("\n") catch |err| {
+            if (err == error.BrokenPipe) {
+                return DestructError.StreamClosed;
+            } else {
+                return DestructError.undefined;
+            }
         };
         return true;
     }

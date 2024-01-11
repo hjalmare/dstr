@@ -17,6 +17,7 @@ pub const DestructError = error{
     InvalidCharacter,
     Overflow,
     undefined,
+    StreamClosed,
 };
 
 pub const PrimitiveValueType = enum { chars, int, bool };

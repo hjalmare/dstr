@@ -68,7 +68,7 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
                 }
                 const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
                 const inSlice = input[start..(start + cIndex)];
-                if (wasRef and !std.mem.eql(u8, "_", inSlice)) {
+                if (wasRef) {
                     try ret.append(inSlice);
                     if (debug) {
                         std.debug.print("Was Ref:{any} {any} {s}\n", .{ start, cIndex, input[start..(start + cIndex)] });
@@ -179,6 +179,8 @@ pub fn main() !void {
                 _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
                 input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
                 continue;
+            } else if (err == DestructError.StreamClosed) {
+                break;
             } else {
                 return err;
             }
@@ -229,6 +231,13 @@ test "segment.input.double.all" {
 test "segment.input.double.skip" {
     const input = "0123456789";
     const src = "'{_}3456{a}9' a";
+    const expectedOutput = [_][]const u8{"78"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.input.tripple.skip" {
+    const input = "0123456789";
+    const src = "'{_}3{_}6{a}9' a";
     const expectedOutput = [_][]const u8{"78"};
     try quickTest(src, input, expectedOutput[0..]);
 }
