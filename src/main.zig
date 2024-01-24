@@ -242,6 +242,13 @@ test "segment.input.tripple.skip" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "segment.escape" {
+    const input = "01\"23456789";
+    const src = "'01\\\"23456{a}9' a";
+    const expectedOutput = [_][]const u8{"78"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
 test "Ellipsis and string interpolation" {
     const src = "[ one ... two ]   two ' '  'says {one} aswell' ";
     const input = "hello a b c malte";

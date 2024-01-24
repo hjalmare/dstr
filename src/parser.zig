@@ -20,8 +20,12 @@ const RefMap = runtime.RefMap;
 const StreamStep = streamstep.StreamStep;
 
 //Set to true for debug output
-const debug = false;
+const debug = true;
 const debugReader = false;
+
+// ======================================================================
+// This file is pretty much all dragons
+// ======================================================================
 
 pub const Program = struct {
     input: InputParser,
@@ -213,6 +217,8 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
         it.select();
     }
 
+    var charBuffer = ArrayList(u8).init(allocator);
+
     while (it.next()) |c| {
         switch (state) {
             .chars => {
@@ -221,7 +227,11 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         if (debug) {
                             std.debug.print("\tAdding CharsSegment: '{s}' \n", .{it.selection()});
                         }
-                        try nodes.append(.{ .chars = it.selection() });
+                        try charBuffer.appendSlice(it.selection());
+
+                        try nodes.append(.{ .chars = charBuffer.items });
+                        //Reset char buffer
+                        charBuffer = ArrayList(u8).init(allocator);
                     }
                     state = pssState.ref;
                     _ = it.next(); //skip leading {}
@@ -233,6 +243,25 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     }
                     //it.select();
                     break;
+                } else if (c == '\\') {
+                    if (debug) {
+                        std.debug.print("\tAppending chars: '{s}' \n", .{it.selection()});
+                    }
+                    try charBuffer.appendSlice(it.selection());
+                    if (it.next()) |e| {
+                        if (debug) {
+                            std.debug.print("\tAppending char: '{c}' \n", .{e});
+                        }
+
+                        const app = switch (e) {
+                            'n' => '\n',
+                            't' => '\t',
+                            else => e,
+                        };
+                        try charBuffer.append(app);
+
+                        it.selectNext();
+                    }
                 }
             },
             .ref => {
@@ -284,7 +313,8 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
         if (debug) {
             std.debug.print("\tAdding trailing CharsSegment: '{s}' \n", .{it.selection()});
         }
-        try nodes.append(.{ .chars = it.selection() });
+        try charBuffer.appendSlice(it.selection());
+        try nodes.append(.{ .chars = charBuffer.items });
     }
 
     return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
