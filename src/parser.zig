@@ -20,7 +20,7 @@ const RefMap = runtime.RefMap;
 const StreamStep = streamstep.StreamStep;
 
 //Set to true for debug output
-const debug = true;
+const debug = false;
 const debugReader = false;
 
 // ======================================================================
