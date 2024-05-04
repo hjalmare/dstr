@@ -8,6 +8,7 @@ first(val num)
 rpad(val num)
 lpad(val num)
 upper(val)
+replace(val s r)
 
 eq(val1 val2)
 startsWith(val1 val2)
