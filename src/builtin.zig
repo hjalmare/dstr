@@ -27,6 +27,7 @@ const builtins = [_]Builtin{
     Builtin{ .name = "first", .impl = builtinFirst },
     Builtin{ .name = "rpad", .impl = builtinRPad },
     Builtin{ .name = "lpad", .impl = builtinLPad },
+    Builtin{ .name = "replace", .impl = builtinReplace },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
@@ -79,6 +80,28 @@ fn builtinFirst(allocator: Allocator, refMap: []const RefMap, line: [][]const u8
     var refStr = try resolveCharsValue(allocator, refMap, line, arg1);
     const result = refStr[0..(asInt)];
     return PrimitiveValue{ .chars = result };
+}
+
+fn builtinReplace(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if ((fun.args.len % 2) != 1) {
+        std.debug.print(
+            "Failed to execute '{s}', expects a odd number of arguments arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
+
+    var ret = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+
+    for (0..((fun.args.len - 1) / 2)) |i| {
+        const start = i * 2 + 1;
+        const needle = try resolveCharsValue(allocator, refMap, line, fun.args[start]);
+        const replacement = try resolveCharsValue(allocator, refMap, line, fun.args[start + 1]);
+
+        ret = try std.mem.replaceOwned(u8, allocator, ret, needle, replacement);
+    }
+
+    return PrimitiveValue{ .chars = ret };
 }
 
 fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {

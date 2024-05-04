@@ -132,7 +132,7 @@ pub fn main() !void {
         std.debug.print("dstr version: {s}\n", .{VERSION});
         std.debug.print("{s}\n", .{HELP});
 
-        std.os.exit(1);
+        std.process.exit(1);
     }
 
     const src = args[1];
@@ -150,7 +150,7 @@ pub fn main() !void {
         streamstep.StreamStep{ .exec = streamstep.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
 
     const pgm = compile(allocator, src, &stream) catch {
-        std.os.exit(1);
+        std.process.exit(1);
     };
 
     while (input) |in| {

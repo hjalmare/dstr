@@ -137,7 +137,7 @@ pub const ExecStep = struct {
         var cp = std.ChildProcess.init(cmdLine.items, self.allocator);
         _ = cp.spawnAndWait() catch {
             std.debug.print("Failed to execute '{s}'\n", .{self.cmd});
-            std.os.exit(1);
+            std.process.exit(1);
         };
         return true;
     }
