@@ -24,10 +24,12 @@ const builtins = [_]Builtin{
     Builtin{ .name = "cmd", .impl = builtinCmd },
     Builtin{ .name = "pipe", .impl = builtinPipeCmd },
     Builtin{ .name = "upper", .impl = builtinUpper },
+    Builtin{ .name = "lower", .impl = builtinLower },
     Builtin{ .name = "first", .impl = builtinFirst },
     Builtin{ .name = "rpad", .impl = builtinRPad },
     Builtin{ .name = "lpad", .impl = builtinLPad },
     Builtin{ .name = "replace", .impl = builtinReplace },
+    Builtin{ .name = "trim", .impl = builtinTrim },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
@@ -72,6 +74,15 @@ fn builtinUpper(allocator: Allocator, refMap: []const RefMap, line: [][]const u8
     return PrimitiveValue{ .chars = refBuf };
 }
 
+fn builtinLower(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 1, fun.args.len);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+
+    const refBuf = try allocator.alloc(u8, arg1.len);
+    _ = std.ascii.lowerString(refBuf, arg1);
+    return PrimitiveValue{ .chars = refBuf };
+}
+
 fn builtinFirst(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
     try assertArgsEq(fun.name, 2, fun.args.len);
     const arg1 = fun.args[0];
@@ -102,6 +113,23 @@ fn builtinReplace(allocator: Allocator, refMap: []const RefMap, line: [][]const 
     }
 
     return PrimitiveValue{ .chars = ret };
+}
+
+fn builtinTrim(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    if ((fun.args.len != 1) and (fun.args.len != 2)) {
+        std.debug.print(
+            "Failed to execute '{s}', expects 2 or 3 arguments but got {d}\n",
+            .{ fun.name, fun.args.len },
+        );
+        return DestructError.exec_arg_error;
+    }
+
+    const v = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    const trimChars = if (fun.args.len == 2) try resolveCharsValue(allocator, refMap, line, fun.args[1]) else " \t\n";
+
+    const trimmed = std.mem.trim(u8, v, trimChars);
+
+    return PrimitiveValue{ .chars = trimmed };
 }
 
 fn builtinRPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {

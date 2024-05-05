@@ -99,8 +99,11 @@ There is currently a small selection of functions implemented.
 | `rpad(val num ptrn)`    | `val.rpad(num ptrn)`    | Pads the right side of `val` with `ptrn` so that it is `num` characters long          |
 | `lpad(val num)`         | `val.lpad(num)`         | Pads the left side of `val` with spaces so that it is `num` characters long           |
 | `lpad(val num ptrn)`    | `val.lpad(num ptrn)`    | Pads the left side of `val` with `ptrn` so that it is `num` characters long           |
-| `upper(val)`            | `val.upper()`           | Return the uppercase version of `val`                                                 |
+| `upper(val)`            | `val.upper()`           | Return the upper case version of `val`                                                |
+| `lower(val)`            | `val.lower()`           | Return the lower case version of `val`                                                |
 | `replace(val s r)`      | `val.upper(s r)`        | Replace all instances of the string `s` with `r` within `val`                         |
+| `trim(val)`             | `val.trim()`            | Remove all whitespace from both ends of var                                           |
+| `trim(val prtn)`        | `val.trim(ptrn)`        | Remove all characters in `ptrn` from both ends of var                                 |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                         |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                                |
 | `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                                 |

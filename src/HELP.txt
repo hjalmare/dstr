@@ -5,10 +5,12 @@ Example 2: dstr "'foo {_} bar {a}' a.first(2)"
 
 Built in functions:
 first(val num)
-rpad(val num)
-lpad(val num)
+rpad(val ptrn?)
+lpad(val ptrn?)
 upper(val)
+lower(val)
 replace(val s r)
+trim(val ptrn?)
 
 eq(val1 val2)
 startsWith(val1 val2)
