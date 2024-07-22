@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const main_tests = b.addTest(.{
         .name = "Test",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
     });
 
@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "dstr",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });

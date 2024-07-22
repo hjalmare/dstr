@@ -134,7 +134,7 @@ pub const ExecStep = struct {
         var cmdLine = ArrayList([]const u8).init(self.allocator);
         try cmdLine.append(self.cmd);
         try cmdLine.appendSlice(line);
-        var cp = std.ChildProcess.init(cmdLine.items, self.allocator);
+        var cp = std.process.Child.init(cmdLine.items, self.allocator);
         _ = cp.spawnAndWait() catch {
             std.debug.print("Failed to execute '{s}'\n", .{self.cmd});
             std.process.exit(1);

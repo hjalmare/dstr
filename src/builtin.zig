@@ -218,7 +218,7 @@ fn builtinCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, 
         try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
     }
 
-    const cp = std.ChildProcess.run(.{ .argv = argbuff.items, .allocator = allocator }) catch {
+    const cp = std.process.Child.run(.{ .argv = argbuff.items, .allocator = allocator }) catch {
         std.debug.print("Failed to execute '{s}'\n", .{argbuff.items[0]});
 
         return DestructError.invocation_error;
@@ -253,7 +253,7 @@ fn builtinPipeCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const 
         try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
     }
 
-    var process = std.ChildProcess.init(argbuff.items, allocator);
+    var process = std.process.Child.init(argbuff.items, allocator);
     process.stdin_behavior = .Pipe;
     process.stdout_behavior = .Pipe;
     process.stderr_behavior = .Pipe;
