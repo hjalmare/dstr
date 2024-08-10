@@ -104,6 +104,7 @@ There is currently a small selection of functions implemented.
 | `replace(val s r)`      | `val.upper(s r)`        | Replace all instances of the string `s` with `r` within `val`                         |
 | `trim(val)`             | `val.trim()`            | Remove all whitespace from both ends of var                                           |
 | `trim(val prtn)`        | `val.trim(ptrn)`        | Remove all characters in `ptrn` from both ends of var                                 |
+| `length(val1)`          | `val1.length()`         | Returns the length of the string `val1`                                               |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                         |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                                |
 | `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                                 |
