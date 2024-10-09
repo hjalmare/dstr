@@ -260,10 +260,7 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * csv parsing
 * use files as input
 * compiletime typecheck
-* faster stdio (maybe?)
-* escapes in template destructoring
 * toggleable strict mode
 * Jit
 * Regex support
-* More string builtins like trimming
 * Access to env vars
