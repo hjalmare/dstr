@@ -83,6 +83,9 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
                 wasRef = false;
             },
             .ref => {
+                if (debug) {
+                    std.debug.print("Ref: '{s}' \n", .{seg.ref});
+                }
                 wasRef = true;
             },
         }
@@ -200,6 +203,8 @@ pub fn main() !void {
     try runProgram(allocator, src, exe);
 }
 
+// Segment input tests
+// ====================================================
 test "segment.input.single.mid" {
     const input = "0123456789";
     const src = "'01{a}456789' a";
@@ -256,6 +261,22 @@ test "segment.escape" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "segment.escape.tab" {
+    const input = "01\t23456789";
+    const src = "'01\\t23456{a}9' a";
+    const expectedOutput = [_][]const u8{"78"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.escape.tab2" {
+    const input = "aa\tbb\tcc";
+    const src = "'{a}\\t{b}\\t{c}' a b c";
+    const expectedOutput = [_][]const u8{ "aa", "bb", "cc" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+// Positional testing
+// ==========================================================
 test "Ellipsis and string interpolation" {
     const src = "[ one ... two ]   two ' '  'says {one} aswell' ";
     const input = "hello a b c malte";
