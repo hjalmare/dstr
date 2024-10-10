@@ -101,7 +101,7 @@ There is currently a small selection of functions implemented.
 | `lpad(val num ptrn)`    | `val.lpad(num ptrn)`    | Pads the left side of `val` with `ptrn` so that it is `num` characters long           |
 | `upper(val)`            | `val.upper()`           | Return the upper case version of `val`                                                |
 | `lower(val)`            | `val.lower()`           | Return the lower case version of `val`                                                |
-| `replace(val s r)`      | `val.upper(s r)`        | Replace all instances of the string `s` with `r` within `val`                         |
+| `replace(val s r)`      | `val.replace(s r)`      | Replace all instances of the string `s` with `r` within `val`                         |
 | `trim(val)`             | `val.trim()`            | Remove all whitespace from both ends of var                                           |
 | `trim(val prtn)`        | `val.trim(ptrn)`        | Remove all characters in `ptrn` from both ends of var                                 |
 | `length(val1)`          | `val1.length()`         | Returns the length of the string `val1`                                               |
