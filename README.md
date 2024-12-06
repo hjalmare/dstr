@@ -75,15 +75,15 @@ Inserting a ellipsis `...` into the expression will tell dstr to skip to the end
 ### Output
 The output consists of a list of symbols and strings.
 
-`[a b] b a` &ensp; Outputs `b` then `a`
+`[a b] b a` &ensp; Outputs the value of `b` then the value of `a`
 
 To output a string use single quotes `'`
 
-`[a] 'Look: ' a` &ensp; Outputs the string `"Look:"` then `a`
+`[a] 'Look: ' a` &ensp; Outputs the string `"Look:"` then the value of `a`
 
 dstr supports string interpolation with `{symbol}`
 
-`[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`  
+`[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`. If `a` has the value `here` it will output `Look: here`
 
 
 ### Built in functions
