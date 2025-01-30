@@ -26,6 +26,8 @@ fn isWhitespace(c: u8) bool {
 //Space Separated String
 const SssMode = enum { START, WORD };
 
+const DelimiterType = enum { ws, chr, seq };
+
 fn splitInput(allocator: Allocator, input: []const u8) ![][]const u8 {
     var ret = ArrayList([]const u8).init(allocator);
     var startPos: usize = 0;
@@ -81,6 +83,9 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
                 wasRef = false;
             },
             .ref => {
+                if (debug) {
+                    std.debug.print("Ref: '{s}' \n", .{seg.ref});
+                }
                 wasRef = true;
             },
         }
@@ -107,47 +112,25 @@ fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayLi
     return ret;
 }
 
-pub fn main() !void {
-    //Allocator used for the duration of the main program
-    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    const allocator = gpa.allocator();
-    defer gpa.deinit();
+fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
 
     //Allocator used for each line of input
-    //TODO: use some resettable allocator here
     var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const lineAllocator = lineArena.allocator();
     defer lineArena.deinit();
 
-    //Process args
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-    if (debug) {
-        for (args) |a| {
-            std.debug.print("arg: {s}\n", .{a});
-        }
-    }
-
-    if ((args.len < 2) or (args.len > 3)) {
-        std.debug.print("dstr version: {s}\n", .{VERSION});
-        std.debug.print("{s}\n", .{HELP});
-
-        std.process.exit(1);
-    }
-
-    const src = args[1];
     //Read system in
     var stdinBuff = std.io.bufferedReader(std.io.getStdIn().reader());
     var stdin = stdinBuff.reader();
-    //TODO; This method of reading stdin seems very slow
+    //TODO; This method of reading stdin seems very slow (it seems faster after zig 10 :party:)
     var input: ?[]u8 = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
 
     const stdout = std.io.getStdOut();
 
-    var stream: streamstep.StreamStep = if (args.len == 2)
-        streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } }
+    var stream: streamstep.StreamStep = if (exe) |ex|
+        streamstep.StreamStep{ .exec = streamstep.ExecStep{ .allocator = lineAllocator, .cmd = ex } }
     else
-        streamstep.StreamStep{ .exec = streamstep.ExecStep{ .allocator = lineAllocator, .cmd = args[2] } };
+        streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } };
 
     const pgm = compile(allocator, src, &stream) catch {
         std.process.exit(1);
@@ -193,6 +176,35 @@ pub fn main() !void {
     }
 }
 
+pub fn main() !void {
+    //Allocator used for the duration of the main program
+    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = gpa.allocator();
+    defer gpa.deinit();
+
+    //Process args
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+    if (debug) {
+        for (args) |a| {
+            std.debug.print("arg: {s}\n", .{a});
+        }
+    }
+
+    if ((args.len < 2) or (args.len > 3)) {
+        std.debug.print("dstr version: {s}\n", .{VERSION});
+        std.debug.print("{s}\n", .{HELP});
+
+        std.process.exit(1);
+    }
+    const src = args[1];
+    const exe = if (args.len == 3) args[2] else null;
+
+    try runProgram(allocator, src, exe);
+}
+
+// Segment input tests
+// ====================================================
 test "segment.input.single.mid" {
     const input = "0123456789";
     const src = "'01{a}456789' a";
@@ -249,6 +261,22 @@ test "segment.escape" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "segment.escape.tab" {
+    const input = "01\t23456789";
+    const src = "'01\\t23456{a}9' a";
+    const expectedOutput = [_][]const u8{"78"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "segment.escape.tab2" {
+    const input = "aa\tbb\tcc";
+    const src = "'{a}\\t{b}\\t{c}' a b c";
+    const expectedOutput = [_][]const u8{ "aa", "bb", "cc" };
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+// Positional testing
+// ==========================================================
 test "Ellipsis and string interpolation" {
     const src = "[ one ... two ]   two ' '  'says {one} aswell' ";
     const input = "hello a b c malte";

@@ -75,15 +75,15 @@ Inserting a ellipsis `...` into the expression will tell dstr to skip to the end
 ### Output
 The output consists of a list of symbols and strings.
 
-`[a b] b a` &ensp; Outputs `b` then `a`
+`[a b] b a` &ensp; Outputs the value of `b` then the value of `a`
 
 To output a string use single quotes `'`
 
-`[a] 'Look: ' a` &ensp; Outputs the string `"Look:"` then `a`
+`[a] 'Look: ' a` &ensp; Outputs the string `"Look:"` then the value of `a`
 
 dstr supports string interpolation with `{symbol}`
 
-`[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`  
+`[a] 'Look: {a}'` &ensp; will replace `{a}` with the value of the symbol `a`. If `a` has the value `here` it will output `Look: here`
 
 
 ### Built in functions
@@ -101,9 +101,10 @@ There is currently a small selection of functions implemented.
 | `lpad(val num ptrn)`    | `val.lpad(num ptrn)`    | Pads the left side of `val` with `ptrn` so that it is `num` characters long           |
 | `upper(val)`            | `val.upper()`           | Return the upper case version of `val`                                                |
 | `lower(val)`            | `val.lower()`           | Return the lower case version of `val`                                                |
-| `replace(val s r)`      | `val.upper(s r)`        | Replace all instances of the string `s` with `r` within `val`                         |
+| `replace(val s r)`      | `val.replace(s r)`      | Replace all instances of the string `s` with `r` within `val`                         |
 | `trim(val)`             | `val.trim()`            | Remove all whitespace from both ends of var                                           |
 | `trim(val prtn)`        | `val.trim(ptrn)`        | Remove all characters in `ptrn` from both ends of var                                 |
+| `length(val1)`          | `val1.length()`         | Returns the length of the string `val1`                                               |
 | `eq(val1 val2)`         | `val1.eq(val2)`         | Returns true if `val1 = val2`                                                         |
 | `startsWith(val1 val2)` | `val1.startsWith(val2)` | Returns true if `val1` starts with the value of `val2`                                |
 | `endsWith(val1 val2)`   | `val1.endsWith(val2)`   | Returns true if `val1` ends with the value of  `val2`                                 |
@@ -259,10 +260,7 @@ $ ls -ld * | dstr "[_ _ _ _ si ... fi] fi 'size: {si}'" ./test.sh
 * csv parsing
 * use files as input
 * compiletime typecheck
-* faster stdio (maybe?)
-* escapes in template destructoring
 * toggleable strict mode
 * Jit
 * Regex support
-* More string builtins like trimming
 * Access to env vars

@@ -30,6 +30,7 @@ const builtins = [_]Builtin{
     Builtin{ .name = "lpad", .impl = builtinLPad },
     Builtin{ .name = "replace", .impl = builtinReplace },
     Builtin{ .name = "trim", .impl = builtinTrim },
+    Builtin{ .name = "length", .impl = builtinLength },
     Builtin{ .name = "str", .impl = builtinStr },
     Builtin{ .name = "eq", .impl = builtinEq },
     Builtin{ .name = "startsWith", .impl = builtinStartsWith },
@@ -338,6 +339,12 @@ fn builtinContains(allocator: Allocator, refMap: []const RefMap, line: [][]const
     const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
     const arg2 = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     return PrimitiveValue{ .bool = std.mem.indexOf(u8, arg1, arg2) != null };
+}
+
+fn builtinLength(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
+    try assertArgsEq(fun.name, 1, fun.args.len);
+    const arg1 = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
+    return PrimitiveValue{ .int = @intCast(arg1.len) };
 }
 
 fn builtinGt(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {

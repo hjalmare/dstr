@@ -11,6 +11,7 @@ upper(val)
 lower(val)
 replace(val s r)
 trim(val ptrn?)
+length(val1)
 
 eq(val1 val2)
 startsWith(val1 val2)

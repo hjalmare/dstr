@@ -203,7 +203,7 @@ const InputParserResult = struct {
 
 //TODO: Only works with single quotes atm
 //TODO: Dirty as hell but it mostly works, cleanup later :D
-const pssState = enum { chars, ref };
+const pssState = enum { chars, ref, esc };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
     var nodes = ArrayList(runtime.SegmentNode).init(allocator);
     var refMap = ArrayList(RefMap).init(allocator);
@@ -223,7 +223,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
         switch (state) {
             .chars => {
                 if (c == '{') {
-                    if (it.selection().len > 0) {
+                    if ((it.selection().len > 0) or (charBuffer.items.len > 0)) {
                         if (debug) {
                             std.debug.print("\tAdding CharsSegment: '{s}' \n", .{it.selection()});
                         }
@@ -248,20 +248,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         std.debug.print("\tAppending chars: '{s}' \n", .{it.selection()});
                     }
                     try charBuffer.appendSlice(it.selection());
-                    if (it.next()) |e| {
-                        if (debug) {
-                            std.debug.print("\tAppending char: '{c}' \n", .{e});
-                        }
-
-                        const app = switch (e) {
-                            'n' => '\n',
-                            't' => '\t',
-                            else => e,
-                        };
-                        try charBuffer.append(app);
-
-                        it.selectNext();
-                    }
+                    state = pssState.esc;
                 }
             },
             .ref => {
@@ -303,8 +290,24 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         }
                         it.select();
                         break;
+                    } else if (it.peek() == '\\') {
+                        state = pssState.esc;
                     }
                 }
+            },
+            .esc => {
+                const e = it.peek();
+                if (debug) {
+                    std.debug.print("\tAppending escaped char: '{c}' \n", .{e});
+                }
+                const app = switch (e) {
+                    'n' => '\n',
+                    't' => '\t',
+                    else => e,
+                };
+                try charBuffer.append(app);
+                it.selectNext();
+                state = pssState.chars;
             },
         }
     }
