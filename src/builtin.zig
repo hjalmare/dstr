@@ -269,9 +269,9 @@ fn builtinPipeCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const 
     process.stdin.?.close();
     process.stdin = null;
 
-    var out = std.ArrayList(u8).init(allocator);
-    var err = std.ArrayList(u8).init(allocator);
-    process.collectOutput(&out, &err, std.math.maxInt(usize)) catch {
+    var out = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 1024);
+    var err = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 1024);
+    process.collectOutput(allocator, &out, &err, std.math.maxInt(usize)) catch {
         return DestructError.invocation_error;
     };
 
