@@ -120,12 +120,11 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
     defer lineArena.deinit();
 
     //Read system in
-    var stdinBuff = std.io.bufferedReader(std.io.getStdIn().reader());
-    var stdin = stdinBuff.reader();
-    //TODO; This method of reading stdin seems very slow (it seems faster after zig 10 :party:)
-    var input: ?[]u8 = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
+    var stdin_buffer: [4 * 1024 * 1024]u8 = undefined;
+    var stdin_reader = std.fs.File.stdin().reader(&stdin_buffer);
+    var stdin = &stdin_reader.interface;
 
-    const stdout = std.io.getStdOut();
+    const stdout = std.fs.File.stdout();
 
     var stream: streamstep.StreamStep = if (exe) |ex|
         streamstep.StreamStep{ .exec = streamstep.ExecStep{ .allocator = lineAllocator, .cmd = ex } }
@@ -136,7 +135,7 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
         std.process.exit(1);
     };
 
-    while (input) |in| {
+    while (stdin.takeDelimiterExclusive('\n')) |in| {
         //TODO: Get rid of repetative code here
         const splatInput = switch (pgm.input) {
             .positional => splitInput(lineAllocator, in),
@@ -147,7 +146,7 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
                     std.debug.print("Missing input!\n", .{});
                 }
                 _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
-                input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
+                // input = try stdin.takeDelimiterExclusive('\n');
                 continue;
             } else {
                 return err;
@@ -160,7 +159,7 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
                     std.debug.print("Missing input!\n", .{});
                 }
                 _ = lineArena.reset(std.heap.ArenaAllocator.ResetMode.retain_capacity);
-                input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
+                // input = try stdin.takeDelimiterExclusive('\n');
                 continue;
             } else if (err == DestructError.StreamClosed) {
                 break;
@@ -172,8 +171,8 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
         if (!cont) {
             break;
         }
-        input = try stdin.readUntilDelimiterOrEofAlloc(lineAllocator, '\n', 4096);
-    }
+        // input = try stdin.takeDelimiterExclusive('\n');
+    } else |_| {}
 }
 
 pub fn main() !void {
@@ -545,7 +544,7 @@ test "Fail on missing paren in stream" {
 }
 
 fn soutStream() streamstep.StreamStep {
-    const stdout = std.io.getStdOut();
+    const stdout = std.fs.File.stdout();
     return streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } };
 }
 
