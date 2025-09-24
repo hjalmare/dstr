@@ -205,8 +205,8 @@ const InputParserResult = struct {
 //TODO: Dirty as hell but it mostly works, cleanup later :D
 const pssState = enum { chars, ref, esc };
 pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserResult {
-    var nodes = ArrayList(runtime.SegmentNode).init(allocator);
-    var refMap = ArrayList(RefMap).init(allocator);
+    var nodes = ArrayList(runtime.SegmentNode).empty;
+    var refMap = ArrayList(RefMap).empty;
     _ = it.next(); //Skipp leading quote
     it.select();
 
@@ -217,7 +217,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
         it.select();
     }
 
-    var charBuffer = ArrayList(u8).init(allocator);
+    var charBuffer = ArrayList(u8).empty;
 
     while (it.next()) |c| {
         switch (state) {
@@ -227,11 +227,11 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                         if (debug) {
                             std.debug.print("\tAdding CharsSegment: '{s}' \n", .{it.selection()});
                         }
-                        try charBuffer.appendSlice(it.selection());
+                        try charBuffer.appendSlice(allocator, it.selection());
 
-                        try nodes.append(.{ .chars = charBuffer.items });
+                        try nodes.append(allocator, .{ .chars = charBuffer.items });
                         //Reset char buffer
-                        charBuffer = ArrayList(u8).init(allocator);
+                        charBuffer = ArrayList(u8).empty;
                     }
                     state = pssState.ref;
                     _ = it.next(); //skip leading {}
@@ -247,7 +247,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     if (debug) {
                         std.debug.print("\tAppending chars: '{s}' \n", .{it.selection()});
                     }
-                    try charBuffer.appendSlice(it.selection());
+                    try charBuffer.appendSlice(allocator, it.selection());
                     state = pssState.esc;
                 }
             },
@@ -259,8 +259,8 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     if (debug) {
                         std.debug.print("\tAdding RefMap WS: '{s}' \n", .{it.selection()});
                     }
-                    try nodes.append(.{ .ref = it.selection() });
-                    try refMap.append(RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
+                    try nodes.append(allocator, .{ .ref = it.selection() });
+                    try refMap.append(allocator, RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
                     it.skipWhitespaceUntil('}') catch {
                         try it.printUnexpectedCharError(allocator);
                         return DestructError.unexpected_char;
@@ -279,8 +279,8 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     if (debug) {
                         std.debug.print("\tAdding RefMap: '{s}' \n", .{it.selection()});
                     }
-                    try nodes.append(.{ .ref = it.selection() });
-                    try refMap.append(RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
+                    try nodes.append(allocator, .{ .ref = it.selection() });
+                    try refMap.append(allocator, RefMap{ .name = it.selection(), .offset = @intCast(refMap.items.len) });
                     state = pssState.chars;
                     _ = it.next(); //Skip trailing }
                     it.select();
@@ -305,7 +305,7 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
                     't' => '\t',
                     else => e,
                 };
-                try charBuffer.append(app);
+                try charBuffer.append(allocator, app);
                 it.selectNext();
                 state = pssState.chars;
             },
@@ -316,15 +316,15 @@ pub fn parseSegmentInput(allocator: Allocator, it: *StringReader) !InputParserRe
         if (debug) {
             std.debug.print("\tAdding trailing CharsSegment: '{s}' \n", .{it.selection()});
         }
-        try charBuffer.appendSlice(it.selection());
-        try nodes.append(.{ .chars = charBuffer.items });
+        try charBuffer.appendSlice(allocator, it.selection());
+        try nodes.append(allocator, .{ .chars = charBuffer.items });
     }
 
     return InputParserResult{ .parser = .{ .segments = nodes.items }, .refs = refMap.items };
 }
 
 pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]RefMap {
-    var ret = ArrayList(RefMap).init(allocator);
+    var ret = ArrayList(RefMap).empty;
 
     var afterEllipse = false;
 
@@ -346,7 +346,7 @@ pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]Re
             if (debug) {
                 std.debug.print("\tAdding RefMap: '{s}' '{any}' Ellipse: '{any}'\n", .{ sym, offset, afterEllipse });
             }
-            try ret.append(RefMap{ .name = sym, .offset = offset });
+            try ret.append(allocator, RefMap{ .name = sym, .offset = offset });
         }
     }
 
@@ -354,7 +354,7 @@ pub fn createPositionalRefMap(allocator: Allocator, symbols: [][]const u8) ![]Re
 }
 
 pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParserResult {
-    var symbols = ArrayList([]const u8).init(allocator);
+    var symbols = ArrayList([]const u8).empty;
 
     while (it.next()) |c| {
         if (c == ']') {
@@ -371,7 +371,7 @@ pub fn parsePositionalInput(allocator: Allocator, it: *StringReader) !InputParse
                 const leadAlpha = ascii.isAlphabetic(sym[0]);
 
                 if (isIgnored or isEllipsis or leadAlpha) {
-                    try symbols.append(sym);
+                    try symbols.append(allocator, sym);
                 } else {
                     std.debug.print("Error: invalid symbol: {s}\n", .{sym});
                     return DestructError.ref_non_alpha;
@@ -419,12 +419,12 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *stream
 
     //read symbol bindings
     //read expressions
-    var ex = ArrayList(AstNode).init(allocator);
+    var ex = ArrayList(AstNode).empty;
     while (it.nextNonWhitespace()) |_| {
         if (debug) {
             std.debug.print("Adding expr\n", .{});
         }
-        try ex.append(readAstNode(allocator, &it) catch |err| {
+        try ex.append(allocator, readAstNode(allocator, &it) catch |err| {
             switch (err) {
                 DestructError.unexpected_char => {
                     try it.printUnexpectedCharError(allocator);
@@ -438,7 +438,7 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *stream
     }
 
     if (debug) {
-        var prefix = ArrayList(u8).init(allocator);
+        var prefix = ArrayList(u8).empty;
         for (ex.items) |i| {
             try i.print(&prefix);
         }
@@ -472,7 +472,7 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
         } else if (c == '(') {
             //Fun
             const stepName = it.selection();
-            var argList = ArrayList(AstNode).init(allocator);
+            var argList = ArrayList(AstNode).empty;
             try readArgList(allocator, it, &argList);
             if (debug) {
                 std.debug.print("\tProducing StreamStep '{s}'\n", .{stepName});
@@ -560,8 +560,8 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
                     it.rewind();
                     return ret;
                 } else if (lahead == '.') {
-                    var innerArgs = ArrayList(AstNode).init(allocator);
-                    try innerArgs.append(ret);
+                    var innerArgs = ArrayList(AstNode).empty;
+                    try innerArgs.append(allocator, ret);
                     return wrapInFun(allocator, &innerArgs, it);
                 } else {
                     return DestructError.unexpected_char;
@@ -589,7 +589,7 @@ pub fn readArgList(allocator: Allocator, it: *StringReader, args: *ArrayList(Ast
     while (it.peek() != ')') {
         const arg = try readAstNode(allocator, it);
 
-        try args.append(arg);
+        try args.append(allocator, arg);
         if (it.eof()) {
             //When we reach end of program before seeing the closing paren
             return DestructError.unexpected_char;
@@ -613,20 +613,20 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
     while (it.next()) |c| {
         if (c == '.') {
             //RefFollowed by func
-            var argList = ArrayList(AstNode).init(allocator);
-            try argList.append(AstNode{ .ref = it.selection() });
+            var argList = ArrayList(AstNode).empty;
+            try argList.append(allocator, AstNode{ .ref = it.selection() });
             return wrapInFun(allocator, &argList, it);
         } else if (c == '(') {
             //Fun
             const funName = it.selection();
-            var argList = ArrayList(AstNode).init(allocator);
+            var argList = ArrayList(AstNode).empty;
             try readArgList(allocator, it, &argList);
             const ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
 
             if (it.next()) |lahead| {
                 if (lahead == '.') {
-                    var subArgList = ArrayList(AstNode).init(allocator);
-                    try subArgList.append(ret);
+                    var subArgList = ArrayList(AstNode).empty;
+                    try subArgList.append(allocator, ret);
                     return wrapInFun(allocator, &subArgList, it);
                 } else {
                     it.rewind();
@@ -678,7 +678,7 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
         std.debug.print("Enter readStringExpression\n", .{});
     }
     const qtType = it.peek();
-    var fragments = ArrayList(AstNode).init(allocator);
+    var fragments = ArrayList(AstNode).empty;
 
     if (debug and !((qtType == '\'') or (qtType == '"'))) {
         std.debug.print("Error: invalid start of str block: {c}\n", .{qtType});
@@ -692,13 +692,13 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             if (debug) {
                 std.debug.print("\tFinal String fragment '{s}'\n", .{it.selection()});
             }
-            try fragments.append(AstNode{ .chars = it.selection() });
+            try fragments.append(allocator, AstNode{ .chars = it.selection() });
             const ret = AstNode{ .fun = AstFun{ .name = "str", .impl = try resolveBuiltin("str"), .args = fragments.items } };
 
             if (it.next()) |lahead| {
                 if (lahead == '.') {
-                    var argList = ArrayList(AstNode).init(allocator);
-                    try argList.append(ret);
+                    var argList = ArrayList(AstNode).empty;
+                    try argList.append(allocator, ret);
                     return wrapInFun(allocator, &argList, it);
                 }
                 it.rewind();
@@ -708,10 +708,10 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             if (debug) {
                 std.debug.print("\tString interpolation\n", .{});
             }
-            try fragments.append(AstNode{ .chars = it.selection() });
+            try fragments.append(allocator, AstNode{ .chars = it.selection() });
             //go back to readAstNode? can there be a string here
             _ = it.next(); //Skip the leading { when going back to }
-            try fragments.append(try readAstNode(allocator, it));
+            try fragments.append(allocator, try readAstNode(allocator, it));
 
             if (it.peek() != '}') {
                 _ = it.next(); //skip ending paren if method call
@@ -724,9 +724,9 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
             it.selectNext();
         } else if (c == '\\') {
             //deal with escape here
-            try fragments.append(AstNode{ .chars = it.selection() });
+            try fragments.append(allocator, AstNode{ .chars = it.selection() });
 
-            try fragments.append(try readEscapedStringCharacter(allocator, it));
+            try fragments.append(allocator, try readEscapedStringCharacter(allocator, it));
             if (it.next()) |qlahead| {
                 if (qlahead == qtType) {
                     if (debug) {
@@ -737,8 +737,8 @@ pub fn readStringExpression(allocator: Allocator, it: *StringReader) !AstNode {
 
                     if (it.next()) |lahead| {
                         if (lahead == '.') {
-                            var argList = ArrayList(AstNode).init(allocator);
-                            try argList.append(ret);
+                            var argList = ArrayList(AstNode).empty;
+                            try argList.append(allocator, ret);
                             return wrapInFun(allocator, &argList, it);
                         }
                         it.rewind();

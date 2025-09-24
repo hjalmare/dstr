@@ -197,9 +197,9 @@ fn builtinLPad(allocator: Allocator, refMap: []const RefMap, line: [][]const u8,
 }
 
 fn builtinStr(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, fun: AstFun) !PrimitiveValue {
-    var strBuf = std.ArrayList(u8).init(allocator);
+    var strBuf = std.ArrayList(u8).empty;
     for (fun.args) |a| {
-        try strBuf.appendSlice(try resolveCharsValue(allocator, refMap, line, a));
+        try strBuf.appendSlice(allocator, try resolveCharsValue(allocator, refMap, line, a));
     }
     return PrimitiveValue{ .chars = strBuf.items };
 }
@@ -213,10 +213,10 @@ fn builtinCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const u8, 
         return DestructError.exec_arg_error;
     }
 
-    var argbuff = std.ArrayList([]const u8).init(allocator);
+    var argbuff = std.ArrayList([]const u8).empty;
 
     for (fun.args) |a| {
-        try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
+        try argbuff.append(allocator, try resolveCharsValue(allocator, refMap, line, a));
     }
 
     const cp = std.process.Child.run(.{ .argv = argbuff.items, .allocator = allocator }) catch {
@@ -247,11 +247,11 @@ fn builtinPipeCmd(allocator: Allocator, refMap: []const RefMap, line: [][]const 
     const cmd = try resolveCharsValue(allocator, refMap, line, fun.args[1]);
     const data = try resolveCharsValue(allocator, refMap, line, fun.args[0]);
 
-    var argbuff = std.ArrayList([]const u8).init(allocator);
+    var argbuff = std.ArrayList([]const u8).empty;
 
-    try argbuff.append(cmd);
+    try argbuff.append(allocator, cmd);
     for (fun.args[2..]) |a| {
-        try argbuff.append(try resolveCharsValue(allocator, refMap, line, a));
+        try argbuff.append(allocator, try resolveCharsValue(allocator, refMap, line, a));
     }
 
     var process = std.process.Child.init(argbuff.items, allocator);

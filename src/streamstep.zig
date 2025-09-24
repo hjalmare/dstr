@@ -83,11 +83,11 @@ pub const EvalStep = struct {
     refMap: []const RefMap,
 
     pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
-        var ret = ArrayList([]const u8).init(line_allocator);
+        var ret = ArrayList([]const u8).empty;
         for (self.expressions) |pred| {
             const p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
 
-            try ret.append(p);
+            try ret.append(line_allocator, p);
         }
 
         return try self.next.accept(line_allocator, ret.items);
@@ -132,9 +132,9 @@ pub const ExecStep = struct {
     cmd: []const u8,
 
     pub fn accept(self: ExecStep, line: [][]const u8) !bool {
-        var cmdLine = ArrayList([]const u8).init(self.allocator);
-        try cmdLine.append(self.cmd);
-        try cmdLine.appendSlice(line);
+        var cmdLine = ArrayList([]const u8).empty;
+        try cmdLine.append(self.allocator, self.cmd);
+        try cmdLine.appendSlice(self.allocator, line);
         var cp = std.process.Child.init(cmdLine.items, self.allocator);
         _ = cp.spawnAndWait() catch {
             std.debug.print("Failed to execute '{s}'\n", .{self.cmd});
@@ -145,10 +145,11 @@ pub const ExecStep = struct {
 };
 
 pub const CollectStep = struct {
+    allocator: Allocator,
     items: ArrayList([][]const u8),
 
     pub fn accept(self: *CollectStep, line: [][]const u8) !bool {
-        try self.items.append(line);
+        try self.items.append(self.allocator, line);
         return true;
     }
 };

@@ -29,7 +29,7 @@ const SssMode = enum { START, WORD };
 const DelimiterType = enum { ws, chr, seq };
 
 fn splitInput(allocator: Allocator, input: []const u8) ![][]const u8 {
-    var ret = ArrayList([]const u8).init(allocator);
+    var ret = ArrayList([]const u8).empty;
     var startPos: usize = 0;
     var mode = SssMode.START;
 
@@ -44,20 +44,20 @@ fn splitInput(allocator: Allocator, input: []const u8) ![][]const u8 {
             SssMode.WORD => {
                 if (isWhitespace(c)) {
                     mode = SssMode.START;
-                    try ret.append(input[startPos..i]);
+                    try ret.append(allocator, input[startPos..i]);
                 }
             },
         }
     }
 
     if (mode == SssMode.WORD) {
-        try ret.append(input[startPos..]);
+        try ret.append(allocator, input[startPos..]);
     }
     return ret.items;
 }
 
 fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, input: []const u8) ![][]const u8 {
-    var ret = ArrayList([]const u8).init(allocator);
+    var ret = ArrayList([]const u8).empty;
     var start: usize = 0;
 
     var wasRef = false;
@@ -71,7 +71,7 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
                 const cIndex = std.mem.indexOf(u8, input[start..], seg.chars) orelse return DestructError.missing_input;
                 const inSlice = input[start..(start + cIndex)];
                 if (wasRef) {
-                    try ret.append(inSlice);
+                    try ret.append(allocator, inSlice);
                     if (debug) {
                         std.debug.print("Was Ref:{any} {any} {s}\n", .{ start, cIndex, input[start..(start + cIndex)] });
                     }
@@ -93,7 +93,7 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
 
     const inSlice = input[start..];
     if (wasRef and !std.mem.eql(u8, "_", inSlice)) {
-        try ret.append(inSlice);
+        try ret.append(allocator, inSlice);
         if (debug) {
             std.debug.print("Trailing ref Ref: {any} {s}\n", .{ start, inSlice });
         }
@@ -103,10 +103,10 @@ fn splitSegments(allocator: Allocator, segments: []const runtime.SegmentNode, in
 }
 
 fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayList([]const u8) {
-    var ret = ArrayList([]const u8).init(allocator);
+    var ret = ArrayList([]const u8).empty;
 
     for (program.ex.items) |ex| {
-        try ret.append(try resolveCharsValue(allocator, program.refMap, line, ex));
+        try ret.append(allocator, try resolveCharsValue(allocator, program.refMap, line, ex));
     }
 
     return ret;
