@@ -412,6 +412,28 @@ test "stream.filter.match" {
     try quickTest(src, input, expectedOutput[0..]);
 }
 
+test "stream.let" {
+    const src = "[a].let([b=a.upper()]) b";
+    const input = "aa";
+
+    const expectedOutput = [_][]const u8{"AA"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+
+test "stream.let2" {
+    const src = "[a].let([ b = a.upper() c = a]) '{b}{c}'";
+    const input = "aa";
+
+    const expectedOutput = [_][]const u8{"AAaa"};
+    try quickTest(src, input, expectedOutput[0..]);
+}
+// test "stream.group" {
+//     const src = "[a b].group(a [b=first(a) c=max(b)]) b c";
+//     const input = "aa bb\naa\ncc";
+
+//     const expectedOutput = [_][]const u8{ "aa", "cc" };
+//     try quickTest(src, input, expectedOutput[0..]);
+// }
 //=========================================================================
 // Functions
 
@@ -621,14 +643,21 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
     const allocator = gpa.allocator();
     defer gpa.deinit();
 
-    var streamStep: streamstep.StreamStep = soutStream();
-    const pgm = try compile(allocator, src, &streamStep);
+    var colStep = streamstep.StreamStep{
+        .collect = streamstep.CollectStep{
+            .allocator = allocator,
+            .items = std.ArrayList([][]const u8).empty,
+        },
+    };
+
+    const pgm = try compile(allocator, src, &colStep);
     const splatInput = switch (pgm.input) {
         .positional => try splitInput(allocator, input),
         .segments => try splitSegments(allocator, pgm.input.segments, input),
     };
-    const ret = try execLine(allocator, pgm, splatInput);
-    try assertStrSlice(ret.items, expected[0..]);
+    _ = try pgm.stream.accept(allocator, pgm.refMap, splatInput);
+    const ret = colStep.collect.items.items[0];
+    try assertStrSlice(ret, expected[0..]);
 }
 
 fn assertStrSlice(a: [][]const u8, b: []const []const u8) error{NotSame}!void {

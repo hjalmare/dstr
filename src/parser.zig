@@ -14,6 +14,7 @@ const DestructError = runtime.DestructError;
 const AstNodeType = runtime.AstNodeType;
 const AstNode = runtime.AstNode;
 const AstFun = runtime.AstFun;
+const ScopeDef = runtime.ScopeDef;
 const InputParser = runtime.InputParser;
 const resolveBuiltin = builtin.resolveBuiltin;
 const RefMap = runtime.RefMap;
@@ -440,11 +441,11 @@ pub fn compile(allocator: Allocator, source: []const u8, terminalStream: *stream
     if (debug) {
         var prefix = ArrayList(u8).empty;
         for (ex.items) |i| {
-            try i.print(&prefix);
+            try i.print(allocator, &prefix);
         }
-        prefix.deinit();
+        prefix.deinit(allocator);
     }
-    evalStep.* = StreamStep{ .eval = streamstep.EvalStep{ .next = terminalStream, .refMap = input.refs, .expressions = ex.items } };
+    evalStep.* = StreamStep{ .eval = streamstep.EvalStep{ .next = terminalStream, .expressions = ex.items } };
     return Program{ .input = input.parser, .refMap = input.refs, .ex = ex, .stream = stream };
 }
 
@@ -515,6 +516,13 @@ pub fn parseStreamFun(allocator: Allocator, refMap: []const RefMap, endStep: *St
                     std.debug.print("First step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
+            } else if (std.mem.eql(u8, stepName, "let")) {
+                if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.scopeDefs)) {
+                    ret.* = .{ .let = streamstep.LetStep{ .next = nextStep, .scopeDefs = argList.items[0].scopeDefs } };
+                } else {
+                    std.debug.print("Let step requires one scope definition param\n", .{});
+                    return DestructError.unexpected_char;
+                }
             } else {
                 std.debug.print("Unknown stream step: {s}\n", .{stepName});
                 return DestructError.unexpected_char;
@@ -554,7 +562,7 @@ pub fn wrapInFun(allocator: Allocator, argList: *ArrayList(AstNode), it: *String
             }
             const ret = AstNode{ .fun = AstFun{ .name = funName, .impl = try resolveBuiltin(funName), .args = argList.items } };
             if (it.next()) |lahead| {
-                if (isWhitespace(lahead) or lahead == '}') {
+                if (isWhitespace(lahead) or lahead == '}' or lahead == ']') {
                     return ret;
                 } else if (lahead == ')') {
                     it.rewind();
@@ -635,7 +643,7 @@ pub fn readRefOrFun(allocator: Allocator, it: *StringReader) !AstNode {
             } else {
                 return ret;
             }
-        } else if (isWhitespace(c) or c == '}' or c == ')') {
+        } else if (isWhitespace(c) or c == '}' or c == ')' or c == ']') {
             //LoneRef
             const refName = it.selection();
             if (debug) {
@@ -774,6 +782,75 @@ pub fn readInteger(it: *StringReader) !AstNode {
     return AstNode{ .int = intVal };
 }
 
+pub fn readSymName(allocator: Allocator, it: *StringReader) DestructError![]const u8 {
+    if (debug) {
+        std.debug.print("Enter readSymName\n", .{});
+    }
+    it.skipWhitespace();
+    it.select();
+    const firstChar = it.peek();
+    // if (firstChar) |c| {
+    if (!ascii.isAlphabetic(firstChar)) {
+        _ = try it.printUnexpectedCharError(allocator);
+        return DestructError.InvalidCharacter;
+    }
+    // } else {
+    //     _ = try it.printUnexpectedtEofError(allocator);
+    //     return DestructError.unexpected_char;
+    // }
+
+    _ = it.next();
+    if (debug) {
+        std.debug.print("Exit readSymName: {s}\n", .{it.selection()});
+    }
+    return it.selection();
+}
+
+pub fn readScopeDef(allocator: Allocator, it: *StringReader) DestructError!AstNode {
+    if (debug) {
+        std.debug.print("Enter readScopeDef\n", .{});
+    }
+    var scopeDefs = ArrayList(ScopeDef).empty;
+    //Parse pairs of <ref>=<expression>
+
+    while (it.next()) |c| {
+        //Read Ref name
+        // read =
+        // read expr
+        //push scope
+        it.skipWhitespace();
+        if (c == ']') {
+            break;
+        }
+        const refName = try readSymName(allocator, it);
+        it.skipWhitespace();
+        if (it.peek() != '=') {
+            try it.printUnexpectedCharError(allocator);
+        }
+        _ = it.next(); //skip =
+        it.skipWhitespace();
+        const expr = try readAstNode(allocator, it);
+        try scopeDefs.append(allocator, ScopeDef{
+            .sym = refName,
+            .node = expr,
+        });
+        if (debug) {
+            std.debug.print("\tAdded scopeDef '{s}' \n", .{refName});
+        }
+
+        if (it.peek() == ']') {
+            break;
+        }
+    }
+
+    if (debug) {
+        std.debug.print("Exit readScopeDef\n", .{});
+    }
+    return AstNode{
+        .scopeDefs = scopeDefs.items,
+    };
+}
+
 pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNode {
     if (debug) {
         std.debug.print("Enter readAstNode\n", .{});
@@ -789,6 +866,8 @@ pub fn readAstNode(allocator: Allocator, it: *StringReader) DestructError!AstNod
     } else if (std.ascii.isAlphanumeric(c) and !isWhitespace(c) and (c != ')')) {
         const ret = readRefOrFun(allocator, it);
         return ret;
+    } else if (c == '[') {
+        return readScopeDef(allocator, it);
     } else if (c == ' ') {
         //if we still point to a whitespace after skipWhitespace we are at eof
         return DestructError.unexpected_char;

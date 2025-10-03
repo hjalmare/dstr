@@ -6,10 +6,11 @@ const Allocator = std.mem.Allocator;
 const AstNode = runtime.AstNode;
 const DestructError = runtime.DestructError;
 const RefMap = runtime.RefMap;
+const ScopeDef = runtime.ScopeDef;
 const resolvePrimitiveValue = runtime.resolvePrimitiveValue;
 const resolveCharsValue = runtime.resolveCharsValue;
 
-pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip, first };
+pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip, first, let };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
@@ -18,15 +19,17 @@ pub const StreamStep = union(StreamStepType) {
     eval: EvalStep,
     skip: SkipStep,
     first: FirstStep,
-    pub fn accept(self: *StreamStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+    let: LetStep,
+    pub fn accept(self: *StreamStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         return switch (self.*) {
             .collect => try self.collect.accept(line),
             .systemOut => try self.systemOut.accept(line),
             .exec => try self.exec.accept(line),
-            .filter => try self.filter.accept(line_allocator, line),
-            .eval => try self.eval.accept(line_allocator, line),
-            .skip => try self.skip.accept(line_allocator, line),
-            .first => try self.first.accept(line_allocator, line),
+            .filter => try self.filter.accept(line_allocator, refMap, line),
+            .eval => try self.eval.accept(line_allocator, refMap, line),
+            .skip => try self.skip.accept(line_allocator, refMap, line),
+            .first => try self.first.accept(line_allocator, refMap, line),
+            .let => try self.let.accept(line_allocator, refMap, line),
         };
     }
 };
@@ -36,7 +39,7 @@ pub const FilterStep = struct {
     predicates: []const AstNode,
     refMap: []const RefMap,
 
-    pub fn accept(self: FilterStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+    pub fn accept(self: FilterStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         for (self.predicates) |pred| {
             const p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
 
@@ -45,7 +48,7 @@ pub const FilterStep = struct {
             }
         }
 
-        return try self.next.accept(line_allocator, line);
+        return try self.next.accept(line_allocator, refMap, line);
     }
 };
 
@@ -53,12 +56,12 @@ pub const SkipStep = struct {
     next: *StreamStep,
     skipCount: i64,
 
-    pub fn accept(self: *SkipStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+    pub fn accept(self: *SkipStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         if (self.skipCount > 0) {
             self.skipCount -= 1;
             return true;
         } else {
-            return try self.next.accept(line_allocator, line);
+            return try self.next.accept(line_allocator, refMap, line);
         }
     }
 };
@@ -67,30 +70,45 @@ pub const FirstStep = struct {
     next: *StreamStep,
     count: i64,
 
-    pub fn accept(self: *FirstStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+    pub fn accept(self: *FirstStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         if (self.count > 0) {
             self.count -= 1;
-            return try self.next.accept(line_allocator, line);
+            return try self.next.accept(line_allocator, refMap, line);
         } else {
             return false;
         }
     }
 };
 
+pub const LetStep = struct {
+    next: *StreamStep,
+    scopeDefs: []const ScopeDef,
+    pub fn accept(self: *LetStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
+        var outLine = try line_allocator.alloc([]const u8, self.scopeDefs.len);
+        var outrefs = try line_allocator.alloc(RefMap, self.scopeDefs.len);
+        for (self.scopeDefs, 0..) |sd, i| {
+            outrefs[i] = RefMap{ .name = sd.sym, .offset = @intCast(i) };
+            const p = try resolveCharsValue(line_allocator, refMap, line, sd.node);
+            outLine[i] = p;
+        }
+
+        return self.next.accept(line_allocator, outrefs, outLine);
+    }
+};
+
 pub const EvalStep = struct {
     next: *StreamStep,
     expressions: []const AstNode,
-    refMap: []const RefMap,
 
-    pub fn accept(self: EvalStep, line_allocator: Allocator, line: [][]const u8) DestructError!bool {
+    pub fn accept(self: EvalStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         var ret = ArrayList([]const u8).empty;
         for (self.expressions) |pred| {
-            const p = try resolveCharsValue(line_allocator, self.refMap, line, pred);
+            const p = try resolveCharsValue(line_allocator, refMap, line, pred);
 
             try ret.append(line_allocator, p);
         }
 
-        return try self.next.accept(line_allocator, ret.items);
+        return try self.next.accept(line_allocator, refMap, ret.items);
     }
 };
 

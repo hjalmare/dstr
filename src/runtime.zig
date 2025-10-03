@@ -50,24 +50,31 @@ pub const PrimitiveValue = union(PrimitiveValueType) {
     }
 };
 
-pub const AstNodeType = enum { ref, fun, chars, int };
+pub const AstNodeType = enum { ref, fun, chars, int, scopeDefs };
 pub const AstNode = union(AstNodeType) {
     ref: []const u8,
     fun: AstFun,
     chars: []const u8,
     int: i64,
+    scopeDefs: []const ScopeDef,
 
-    pub fn print(self: AstNode, prefix: *ArrayList(u8)) !void {
+    pub fn print(self: AstNode, allocator: Allocator, prefix: *ArrayList(u8)) !void {
         switch (self) {
             .ref => std.debug.print("{s}(ref {s})", .{ prefix.items, self.ref }),
             .chars => std.debug.print("{s}(chars '{s}')", .{ prefix.items, self.chars }),
             .int => std.debug.print("{s}(int {any})", .{ prefix.items, self.int }),
-            .fun => try self.fun.print(prefix),
+            .fun => try self.fun.print(allocator, prefix),
+            .scopeDefs => std.debug.print("(scopeDefs)", .{}),
         }
     }
 };
 
 pub const BuiltinFn = *const fn (Allocator, []const RefMap, [][]const u8, AstFun) DestructError!PrimitiveValue;
+
+pub const ScopeDef = struct {
+    sym: []const u8,
+    node: AstNode,
+};
 
 pub const FunType = enum {};
 pub const AstFun = struct {
@@ -82,11 +89,11 @@ pub const AstFun = struct {
         }
     }
 
-    pub fn print(self: AstFun, prefix: *ArrayList(u8)) DestructError!void {
+    pub fn print(self: AstFun, allocator: Allocator, prefix: *ArrayList(u8)) DestructError!void {
         std.debug.print("{s}(fun {s}\n", .{ prefix.items, self.name });
-        try prefix.append('\t');
+        try prefix.append(allocator, '\t');
         for (self.args) |arg| {
-            try arg.print(prefix);
+            try arg.print(allocator, prefix);
             std.debug.print("\n", .{});
         }
         _ = prefix.pop();
@@ -124,6 +131,7 @@ pub fn resolvePrimitiveValue(allocator: Allocator, refMap: []const RefMap, line:
         .ref => PrimitiveValue{ .chars = try resolveRef(refMap, line, node.ref) },
         .fun => node.fun.impl(allocator, refMap, line, node.fun),
         .int => PrimitiveValue{ .int = node.int },
+        .scopeDefs => DestructError.unknown_function,
     };
 }
 
