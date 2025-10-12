@@ -112,7 +112,7 @@ fn execLine(allocator: Allocator, program: Program, line: [][]const u8) !ArrayLi
     return ret;
 }
 
-fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
+fn runProgram(programAllocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
 
     //Allocator used for each line of input
     var lineArena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -131,7 +131,7 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
     else
         streamstep.StreamStep{ .systemOut = streamstep.SystemOutStep{ .writer = stdout } };
 
-    const pgm = compile(allocator, src, &stream) catch {
+    const pgm = compile(programAllocator, src, &stream) catch {
         std.process.exit(1);
     };
 
@@ -139,7 +139,7 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
         //TODO: Get rid of repetative code here
         const splatInput = switch (pgm.input) {
             .positional => splitInput(lineAllocator, in),
-            .segments => splitSegments(allocator, pgm.input.segments, in),
+            .segments => splitSegments(programAllocator, pgm.input.segments, in),
         } catch |err| {
             if (err == DestructError.missing_input) {
                 if (debug) {
@@ -173,6 +173,8 @@ fn runProgram(allocator: Allocator, src: []const u8, exe: ?[]const u8) !void {
         }
         // input = try stdin.takeDelimiterExclusive('\n');
     } else |_| {}
+
+    try pgm.stream.stop(lineAllocator);
 }
 
 pub fn main() !void {
@@ -656,6 +658,7 @@ fn quickTest(src: []const u8, input: []const u8, expected: []const []const u8) !
         .segments => try splitSegments(allocator, pgm.input.segments, input),
     };
     _ = try pgm.stream.accept(allocator, pgm.refMap, splatInput);
+    try pgm.stream.stop(allocator);
     const ret = colStep.collect.items.items[0];
     try assertStrSlice(ret, expected[0..]);
 }

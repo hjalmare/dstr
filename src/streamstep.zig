@@ -10,7 +10,7 @@ const ScopeDef = runtime.ScopeDef;
 const resolvePrimitiveValue = runtime.resolvePrimitiveValue;
 const resolveCharsValue = runtime.resolveCharsValue;
 
-pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip, first, let };
+pub const StreamStepType = enum { collect, systemOut, exec, filter, eval, skip, first, let, sort };
 pub const StreamStep = union(StreamStepType) {
     collect: CollectStep,
     systemOut: SystemOutStep,
@@ -20,6 +20,7 @@ pub const StreamStep = union(StreamStepType) {
     skip: SkipStep,
     first: FirstStep,
     let: LetStep,
+    sort: SortStep,
     pub fn accept(self: *StreamStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         return switch (self.*) {
             .collect => try self.collect.accept(line),
@@ -30,6 +31,20 @@ pub const StreamStep = union(StreamStepType) {
             .skip => try self.skip.accept(line_allocator, refMap, line),
             .first => try self.first.accept(line_allocator, refMap, line),
             .let => try self.let.accept(line_allocator, refMap, line),
+            .sort => try self.sort.accept(line_allocator, refMap, line),
+        };
+    }
+    pub fn stop(self: *StreamStep, line_allocator: Allocator) DestructError!void {
+        return switch (self.*) {
+            .collect => try self.collect.stop(),
+            .systemOut => try self.systemOut.stop(),
+            .exec => try self.exec.stop(),
+            .filter => try self.filter.stop(line_allocator),
+            .eval => try self.eval.stop(line_allocator),
+            .skip => try self.skip.stop(line_allocator),
+            .first => try self.first.stop(line_allocator),
+            .let => try self.let.stop(line_allocator),
+            .sort => try self.sort.stop(line_allocator),
         };
     }
 };
@@ -50,6 +65,10 @@ pub const FilterStep = struct {
 
         return try self.next.accept(line_allocator, refMap, line);
     }
+
+    pub fn stop(self: *FilterStep, line_allocator: Allocator) DestructError!void {
+        try self.next.stop(line_allocator);
+    }
 };
 
 pub const SkipStep = struct {
@@ -64,6 +83,9 @@ pub const SkipStep = struct {
             return try self.next.accept(line_allocator, refMap, line);
         }
     }
+    pub fn stop(self: *SkipStep, line_allocator: Allocator) DestructError!void {
+        try self.next.stop(line_allocator);
+    }
 };
 
 pub const FirstStep = struct {
@@ -77,6 +99,10 @@ pub const FirstStep = struct {
         } else {
             return false;
         }
+    }
+
+    pub fn stop(self: *FirstStep, line_allocator: Allocator) DestructError!void {
+        try self.next.stop(line_allocator);
     }
 };
 
@@ -94,6 +120,59 @@ pub const LetStep = struct {
 
         return self.next.accept(line_allocator, outrefs, outLine);
     }
+    pub fn stop(self: *LetStep, line_allocator: Allocator) DestructError!void {
+        try self.next.stop(line_allocator);
+    }
+};
+
+const SortStorage = struct {
+    refMap: []const RefMap,
+    line: [][]const u8,
+};
+
+pub const SortStep = struct {
+    next: *StreamStep,
+    sortBy: AstNode,
+    programAllocator: Allocator,
+    bufferedInput: ArrayList(SortStorage),
+
+    pub fn init(programAllocator: Allocator, next: *StreamStep, sortBy: AstNode) SortStep {
+        return SortStep{
+            .programAllocator = programAllocator,
+            .next = next,
+            .sortBy = sortBy,
+            .bufferedInput = ArrayList(SortStorage).empty,
+        };
+    }
+
+    pub fn accept(self: *SortStep, _: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
+        var lineBuff = try self.programAllocator.alloc([]const u8, line.len);
+
+        for (line, 0..) |itm, i| {
+            //Copy lineData to program Arena
+            const newItm = try self.programAllocator.alloc(u8, itm.len);
+            std.mem.copyForwards(u8, newItm, line[i]);
+            lineBuff[i] = newItm;
+        }
+
+        const ss = SortStorage{
+            .refMap = refMap,
+            .line = lineBuff,
+        };
+
+        try self.bufferedInput.append(self.programAllocator, ss);
+
+        return true; // self.next.accept(line_allocator, outrefs, outLine);
+    }
+
+    pub fn stop(self: *SortStep, line_allocator: Allocator) DestructError!void {
+        for (self.bufferedInput.items) |i| {
+            if (!try self.next.accept(line_allocator, i.refMap, i.line)) {
+                break;
+            }
+        }
+        try self.next.stop(line_allocator);
+    }
 };
 
 pub const EvalStep = struct {
@@ -109,6 +188,9 @@ pub const EvalStep = struct {
         }
 
         return try self.next.accept(line_allocator, refMap, ret.items);
+    }
+    pub fn stop(self: *EvalStep, line_allocator: Allocator) DestructError!void {
+        try self.next.stop(line_allocator);
     }
 };
 
@@ -143,6 +225,7 @@ pub const SystemOutStep = struct {
         };
         return true;
     }
+    pub fn stop(_: *SystemOutStep) DestructError!void {}
 };
 
 pub const ExecStep = struct {
@@ -160,6 +243,8 @@ pub const ExecStep = struct {
         };
         return true;
     }
+
+    pub fn stop(_: *ExecStep) DestructError!void {}
 };
 
 pub const CollectStep = struct {
@@ -170,4 +255,5 @@ pub const CollectStep = struct {
         try self.items.append(self.allocator, line);
         return true;
     }
+    pub fn stop(_: *CollectStep) DestructError!void {}
 };
