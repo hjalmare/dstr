@@ -130,6 +130,11 @@ const SortStorage = struct {
     line: [][]const u8,
 };
 
+const SortRef = struct {
+    value: []const u8,
+    index: usize,
+};
+
 pub const SortStep = struct {
     next: *StreamStep,
     sortBy: AstNode,
@@ -165,8 +170,22 @@ pub const SortStep = struct {
         return true; // self.next.accept(line_allocator, outrefs, outLine);
     }
 
+    fn sortFun(_: void, a: SortRef, b: SortRef) bool {
+        return std.mem.lessThan(u8, a.value, b.value);
+    }
+
     pub fn stop(self: *SortStep, line_allocator: Allocator) DestructError!void {
-        for (self.bufferedInput.items) |i| {
+        var sortRefs = try line_allocator.alloc(SortRef, self.bufferedInput.items.len);
+        for (self.bufferedInput.items, 0..) |b, i| {
+            const sortVal = try resolveCharsValue(line_allocator, b.refMap, b.line, self.sortBy);
+            sortRefs[i] = SortRef{
+                .value = sortVal,
+                .index = i,
+            };
+        }
+        std.sort.block(SortRef, sortRefs, {}, sortFun);
+        for (sortRefs) |s| {
+            const i = self.bufferedInput.items[s.index];
             if (!try self.next.accept(line_allocator, i.refMap, i.line)) {
                 break;
             }

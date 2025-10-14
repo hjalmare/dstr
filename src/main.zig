@@ -153,7 +153,7 @@ fn runProgram(programAllocator: Allocator, src: []const u8, exe: ?[]const u8) !v
             }
         };
 
-        const cont = pgm.stream.accept(lineAllocator, splatInput) catch |err| {
+        const cont = pgm.stream.accept(lineAllocator, pgm.refMap, splatInput) catch |err| {
             if (err == DestructError.missing_input) {
                 if (debug) {
                     std.debug.print("Missing input!\n", .{});
