@@ -4,6 +4,7 @@ const debug = false;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const AstNode = runtime.AstNode;
+const AstNodeType = runtime.AstNodeType;
 const DestructError = runtime.DestructError;
 const RefMap = runtime.RefMap;
 const ScopeDef = runtime.ScopeDef;
@@ -49,15 +50,29 @@ pub const StreamStep = union(StreamStepType) {
     }
 };
 
-const StreamStepFactory = *const fn () DestructError!*StreamStep;
+const StreamStepFactory = *const fn (Allocator, []AstNode, nextStep: *StreamStep) DestructError!*StreamStep;
 pub const StreamStepItem = struct {
     name: []const u8,
     factory: StreamStepFactory,
 };
 
-const streamSteps = []StreamStepItem{
+const streamSteps = [_]StreamStepItem{
     StreamStepItem{ .name = "filter", .factory = FilterStep.factory },
+    StreamStepItem{ .name = "skip", .factory = SkipStep.factory },
+    StreamStepItem{ .name = "first", .factory = FirstStep.factory },
+    StreamStepItem{ .name = "let", .factory = LetStep.factory },
+    StreamStepItem{ .name = "sort", .factory = SortStep.factory },
 };
+
+pub fn resolveStreamStep(programAllocator: Allocator, name: []const u8, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+    for (streamSteps) |ss| {
+        if (std.mem.eql(u8, name, ss.name)) {
+            return ss.factory(programAllocator, argList, nextStep);
+        }
+    }
+    std.debug.print("Unknown stream step: {s}\n", .{name});
+    return DestructError.unexpected_char;
+}
 
 pub const FilterStep = struct {
     next: *StreamStep,
@@ -96,9 +111,14 @@ pub const SkipStep = struct {
     skipCount: i64,
 
     pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        if ((argList.len != 1) or (argList[0] != AstNodeType.int)) {
+            std.debug.print("Skip step requires one integer param\n", .{});
+            return DestructError.unexpected_char;
+        }
+
         const ret = try programAllocator.create(StreamStep);
         ret.* = .{
-            .skip = SkipStep{ .next = nextStep, .skipCount = argList.items[0].int },
+            .skip = SkipStep{ .next = nextStep, .skipCount = argList[0].int },
         };
         return ret;
     }
@@ -121,11 +141,15 @@ pub const FirstStep = struct {
     count: i64,
 
     pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        if ((argList.len != 1) or (argList[0] != AstNodeType.int)) {
+            std.debug.print("First step requires one integer param\n", .{});
+            return DestructError.unexpected_char;
+        }
         const ret = try programAllocator.create(StreamStep);
         ret.* = .{
             .first = FirstStep{
                 .next = nextStep,
-                .count = argList.items[0].int,
+                .count = argList[0].int,
             },
         };
         return ret;
@@ -150,6 +174,11 @@ pub const LetStep = struct {
     scopeDefs: []const ScopeDef,
 
     pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        if ((argList.len != 1) or (argList[0] != AstNodeType.scopeDefs)) {
+            std.debug.print("Let step requires one scope definition param\n", .{});
+            return DestructError.unexpected_char;
+        }
+
         const ret = try programAllocator.create(StreamStep);
         ret.* = .{ .let = LetStep{
             .next = nextStep,
@@ -191,6 +220,11 @@ pub const SortStep = struct {
     };
 
     pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        if ((argList.len != 1)) {
+            std.debug.print("Sort step requires one value to sort by param\n", .{});
+            return DestructError.unexpected_char;
+        }
+
         const ret = try programAllocator.create(StreamStep);
         ret.* = .{ .sort = SortStep{
             .programAllocator = programAllocator,
