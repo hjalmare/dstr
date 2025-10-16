@@ -49,14 +49,34 @@ pub const StreamStep = union(StreamStepType) {
     }
 };
 
+const StreamStepFactory = *const fn () DestructError!*StreamStep;
+pub const StreamStepItem = struct {
+    name: []const u8,
+    factory: StreamStepFactory,
+};
+
+const streamSteps = []StreamStepItem{
+    StreamStepItem{ .name = "filter", .factory = FilterStep.factory },
+};
+
 pub const FilterStep = struct {
     next: *StreamStep,
     predicates: []const AstNode,
-    refMap: []const RefMap,
+
+    pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        const ret = try programAllocator.create(StreamStep);
+        ret.* = .{
+            .filter = FilterStep{
+                .next = nextStep,
+                .predicates = argList,
+            },
+        };
+        return ret;
+    }
 
     pub fn accept(self: FilterStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         for (self.predicates) |pred| {
-            const p = (try resolvePrimitiveValue(line_allocator, self.refMap, line, pred)).toBool();
+            const p = (try resolvePrimitiveValue(line_allocator, refMap, line, pred)).toBool();
 
             if (!p) {
                 return true;
@@ -75,6 +95,14 @@ pub const SkipStep = struct {
     next: *StreamStep,
     skipCount: i64,
 
+    pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        const ret = try programAllocator.create(StreamStep);
+        ret.* = .{
+            .skip = SkipStep{ .next = nextStep, .skipCount = argList.items[0].int },
+        };
+        return ret;
+    }
+
     pub fn accept(self: *SkipStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         if (self.skipCount > 0) {
             self.skipCount -= 1;
@@ -91,6 +119,17 @@ pub const SkipStep = struct {
 pub const FirstStep = struct {
     next: *StreamStep,
     count: i64,
+
+    pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        const ret = try programAllocator.create(StreamStep);
+        ret.* = .{
+            .first = FirstStep{
+                .next = nextStep,
+                .count = argList.items[0].int,
+            },
+        };
+        return ret;
+    }
 
     pub fn accept(self: *FirstStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         if (self.count > 0) {
@@ -109,6 +148,16 @@ pub const FirstStep = struct {
 pub const LetStep = struct {
     next: *StreamStep,
     scopeDefs: []const ScopeDef,
+
+    pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        const ret = try programAllocator.create(StreamStep);
+        ret.* = .{ .let = LetStep{
+            .next = nextStep,
+            .scopeDefs = argList[0].scopeDefs,
+        } };
+        return ret;
+    }
+
     pub fn accept(self: *LetStep, line_allocator: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {
         var outLine = try line_allocator.alloc([]const u8, self.scopeDefs.len);
         var outrefs = try line_allocator.alloc(RefMap, self.scopeDefs.len);
@@ -125,29 +174,31 @@ pub const LetStep = struct {
     }
 };
 
-const SortStorage = struct {
-    refMap: []const RefMap,
-    line: [][]const u8,
-};
-
-const SortRef = struct {
-    value: []const u8,
-    index: usize,
-};
-
 pub const SortStep = struct {
     next: *StreamStep,
     sortBy: AstNode,
     programAllocator: Allocator,
     bufferedInput: ArrayList(SortStorage),
 
-    pub fn init(programAllocator: Allocator, next: *StreamStep, sortBy: AstNode) SortStep {
-        return SortStep{
+    const SortStorage = struct {
+        refMap: []const RefMap,
+        line: [][]const u8,
+    };
+
+    const SortRef = struct {
+        value: []const u8,
+        index: usize,
+    };
+
+    pub fn factory(programAllocator: Allocator, argList: []AstNode, nextStep: *StreamStep) DestructError!*StreamStep {
+        const ret = try programAllocator.create(StreamStep);
+        ret.* = .{ .sort = SortStep{
             .programAllocator = programAllocator,
-            .next = next,
-            .sortBy = sortBy,
+            .next = nextStep,
+            .sortBy = argList[0],
             .bufferedInput = ArrayList(SortStorage).empty,
-        };
+        } };
+        return ret;
     }
 
     pub fn accept(self: *SortStep, _: Allocator, refMap: []const RefMap, line: [][]const u8) DestructError!bool {

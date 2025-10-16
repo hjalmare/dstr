@@ -499,17 +499,13 @@ pub fn parseStreamFun(programAllocator: Allocator, refMap: []const RefMap, endSt
             }
 
             //TODO: Break this out like builtins
-            const ret = try programAllocator.create(StreamStep);
+            //const ret = try programAllocator.create(StreamStep);
+            var ret: *StreamStep = undefined;
             if (std.mem.eql(u8, stepName, "filter")) {
-                ret.* = .{
-                    .filter = streamstep.FilterStep{
-                        .next = nextStep,
-                        .predicates = argList.items,
-                        .refMap = refMap,
-                    },
-                };
+                ret = try streamstep.FilterStep.factory(programAllocator, argList.items, nextStep);
             } else if (std.mem.eql(u8, stepName, "skip")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
+                    ret = try programAllocator.create(StreamStep);
                     ret.* = .{
                         .skip = streamstep.SkipStep{ .next = nextStep, .skipCount = argList.items[0].int },
                     };
@@ -519,34 +515,21 @@ pub fn parseStreamFun(programAllocator: Allocator, refMap: []const RefMap, endSt
                 }
             } else if (std.mem.eql(u8, stepName, "first")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.int)) {
-                    ret.* = .{
-                        .first = streamstep.FirstStep{ .next = nextStep, .count = argList.items[0].int },
-                    };
+                    ret = try streamstep.FirstStep.factory(programAllocator, argList.items, nextStep);
                 } else {
                     std.debug.print("First step requires one integer param\n", .{});
                     return DestructError.unexpected_char;
                 }
             } else if (std.mem.eql(u8, stepName, "let")) {
                 if ((argList.items.len == 1) and (argList.items[0] == AstNodeType.scopeDefs)) {
-                    ret.* = .{
-                        .let = streamstep.LetStep{
-                            .next = nextStep,
-                            .scopeDefs = argList.items[0].scopeDefs,
-                        },
-                    };
+                    ret = try streamstep.LetStep.factory(programAllocator, argList.items, nextStep);
                 } else {
                     std.debug.print("Let step requires one scope definition param\n", .{});
                     return DestructError.unexpected_char;
                 }
             } else if (std.mem.eql(u8, stepName, "sort")) {
                 if ((argList.items.len == 1)) {
-                    ret.* = .{
-                        .sort = streamstep.SortStep.init(
-                            programAllocator,
-                            nextStep,
-                            argList.items[0],
-                        ),
-                    };
+                    ret = try streamstep.SortStep.factory(programAllocator, argList.items, nextStep);
                 } else {
                     std.debug.print("Sort step requires one value to sort by param\n", .{});
                     return DestructError.unexpected_char;
